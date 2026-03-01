@@ -1,5 +1,6 @@
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
+import DashboardWireframe from '../components/landing/DashboardWireframe'
 import {
     Sparkles, Timer, BookOpen, ClipboardList, Target,
     BarChart3, Calculator, Flame, Brain, ArrowRight,
@@ -233,6 +234,11 @@ export default function Landing() {
                             See Features
                         </motion.button>
                     </motion.div>
+
+                    {/* Dashboard wireframe preview */}
+                    <div style={{ marginTop: 60, width: '100%', position: 'relative', zIndex: 1 }}>
+                        <DashboardWireframe />
+                    </div>
 
                     {/* Scroll indicator */}
                     <motion.div
