@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider, useAuth } from './lib/AuthContext'
 import { AppLayout } from './components/layout/AppLayout'
+import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Onboarding from './pages/Onboarding'
 import Dashboard from './pages/Dashboard'
@@ -49,7 +50,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     )
   }
 
-  if (!isAuthenticated) return <Navigate to="/login" replace />
+  if (!isAuthenticated) return <Navigate to="/" replace />
   if (needsOnboarding) return <Navigate to="/onboarding" replace />
   return <>{children}</>
 }
@@ -82,18 +83,22 @@ function AppRoutes() {
   return (
     <Routes>
       <Route
+        path="/"
+        element={isAuthenticated ? <Navigate to={needsOnboarding ? '/onboarding' : '/dashboard'} replace /> : <Landing />}
+      />
+      <Route
         path="/login"
-        element={isAuthenticated ? <Navigate to={needsOnboarding ? '/onboarding' : '/'} replace /> : <Login />}
+        element={isAuthenticated ? <Navigate to={needsOnboarding ? '/onboarding' : '/dashboard'} replace /> : <Login />}
       />
       <Route
         path="/onboarding"
         element={
-          !isAuthenticated ? <Navigate to="/login" replace /> :
-            !needsOnboarding ? <Navigate to="/" replace /> :
+          !isAuthenticated ? <Navigate to="/" replace /> :
+            !needsOnboarding ? <Navigate to="/dashboard" replace /> :
               <Onboarding />
         }
       />
-      <Route path="/" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
+      <Route path="/dashboard" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
       <Route path="/exams" element={<ProtectedRoute><AppLayout><Exams /></AppLayout></ProtectedRoute>} />
       <Route path="/assignments" element={<ProtectedRoute><AppLayout><Assignments /></AppLayout></ProtectedRoute>} />
       <Route path="/pomodoro" element={<ProtectedRoute><AppLayout><Pomodoro /></AppLayout></ProtectedRoute>} />
