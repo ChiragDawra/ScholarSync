@@ -1,0 +1,198 @@
+import { motion, AnimatePresence } from 'framer-motion'
+import { useAuth } from '@/lib/AuthContext'
+import {
+    LayoutDashboard, BookOpen, ClipboardList, Timer, Target,
+    BarChart3, Calculator, Sparkles, Settings, LogOut, Rocket
+} from 'lucide-react'
+import { NavLink, useLocation } from 'react-router-dom'
+
+const navItems = [
+    { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/exams', label: 'Exams', icon: BookOpen },
+    { path: '/assignments', label: 'Assignments', icon: ClipboardList },
+    { path: '/pomodoro', label: 'Pomodoro', icon: Timer },
+    { path: '/goals', label: 'Goals', icon: Target },
+    { path: '/analytics', label: 'Analytics', icon: BarChart3 },
+    { path: '/gpa', label: 'GPA Predictor', icon: Calculator },
+    { path: '/ai-coach', label: 'AI Coach', icon: Sparkles },
+]
+
+export function Sidebar() {
+    const { user, profile, signOut } = useAuth()
+    const location = useLocation()
+
+    return (
+        <aside style={{
+            width: 260,
+            minHeight: '100vh',
+            background: 'var(--color-bg-sidebar)',
+            borderRight: '1px solid rgba(255,255,255,0.06)',
+            display: 'flex',
+            flexDirection: 'column',
+            padding: '20px 12px',
+            position: 'fixed',
+            left: 0,
+            top: 0,
+            bottom: 0,
+            zIndex: 40,
+            overflowY: 'auto',
+        }}>
+            {/* User Profile */}
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                padding: '8px 12px',
+                marginBottom: 8,
+            }}>
+                <div style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, var(--color-brand), var(--color-brand-alt))',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                }}>
+                    {user?.photoURL ? (
+                        <img src={user.photoURL} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                        <span style={{ fontSize: 14, fontWeight: 700, color: 'white' }}>
+                            {(profile?.name || user?.displayName || 'U').charAt(0).toUpperCase()}
+                        </span>
+                    )}
+                </div>
+                <div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                        {profile?.name || user?.displayName || 'Student'}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
+                        Free Plan
+                    </div>
+                </div>
+            </div>
+
+            <div style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', margin: '8px 0 12px' }} />
+
+            {/* Navigation */}
+            <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {navItems.map((item) => {
+                    const isActive = location.pathname === item.path
+                    const Icon = item.icon
+                    return (
+                        <NavLink
+                            key={item.path}
+                            to={item.path}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 12,
+                                padding: '10px 16px',
+                                borderRadius: 'var(--radius-md)',
+                                textDecoration: 'none',
+                                fontSize: 14,
+                                fontWeight: isActive ? 600 : 400,
+                                color: isActive ? 'white' : 'var(--color-text-secondary)',
+                                background: isActive ? 'var(--color-brand)' : 'transparent',
+                                transition: 'all 150ms ease',
+                                height: 44,
+                            }}
+                            onMouseEnter={(e) => {
+                                if (!isActive) {
+                                    e.currentTarget.style.background = 'rgba(255,255,255,0.05)'
+                                    e.currentTarget.style.color = 'var(--color-text-primary)'
+                                }
+                            }}
+                            onMouseLeave={(e) => {
+                                if (!isActive) {
+                                    e.currentTarget.style.background = 'transparent'
+                                    e.currentTarget.style.color = 'var(--color-text-secondary)'
+                                }
+                            }}
+                        >
+                            <Icon size={18} />
+                            <span>{item.label}</span>
+                            {item.label === 'AI Coach' && (
+                                <span className="badge-muted" style={{
+                                    marginLeft: 'auto',
+                                    fontSize: 10,
+                                    padding: '1px 6px',
+                                }}>Beta</span>
+                            )}
+                        </NavLink>
+                    )
+                })}
+            </nav>
+
+            {/* Bottom Section */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 'auto', paddingTop: 16 }}>
+                <div style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', marginBottom: 8 }} />
+
+                <NavLink
+                    to="/settings"
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 12,
+                        padding: '10px 16px',
+                        borderRadius: 'var(--radius-md)',
+                        textDecoration: 'none',
+                        fontSize: 14,
+                        color: location.pathname === '/settings' ? 'white' : 'var(--color-text-secondary)',
+                        background: location.pathname === '/settings' ? 'var(--color-brand)' : 'transparent',
+                        height: 44,
+                    }}
+                >
+                    <Settings size={18} />
+                    <span>Settings</span>
+                </NavLink>
+
+                <button
+                    onClick={signOut}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 12,
+                        padding: '10px 16px',
+                        borderRadius: 'var(--radius-md)',
+                        border: 'none',
+                        background: 'transparent',
+                        fontSize: 14,
+                        color: 'var(--color-text-secondary)',
+                        cursor: 'pointer',
+                        height: 44,
+                        width: '100%',
+                        fontFamily: 'var(--font-sans)',
+                    }}
+                >
+                    <LogOut size={18} />
+                    <span>Sign Out</span>
+                </button>
+
+                <button
+                    className="btn-gradient"
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8,
+                        padding: '12px 16px',
+                        borderRadius: 'var(--radius-full)',
+                        border: 'none',
+                        background: 'linear-gradient(135deg, var(--color-brand), var(--color-brand-alt))',
+                        color: 'white',
+                        fontSize: 14,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        width: '100%',
+                        fontFamily: 'var(--font-sans)',
+                    }}
+                >
+                    <Rocket size={16} />
+                    Upgrade to Pro
+                </button>
+            </div>
+        </aside>
+    )
+}
