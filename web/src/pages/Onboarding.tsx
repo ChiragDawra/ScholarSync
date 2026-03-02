@@ -5,6 +5,7 @@ import { DEFAULT_SUBJECT_COLORS } from '@shared/constants'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Sparkles, X, Plus, ChevronRight, ChevronLeft, Check } from 'lucide-react'
 import type { Subject } from '@shared/types'
+import toast from 'react-hot-toast'
 
 const STEPS = ['Profile', 'Subjects', 'Preferences']
 
@@ -55,21 +56,25 @@ export default function Onboarding() {
                 onboardingComplete: true,
                 fcmTokens: [],
             })
-            navigate('/')
+            toast.success('Profile saved! Welcome to ScholarSync 🎉')
+            // Navigate directly to dashboard — profile state is already updated
+            navigate('/dashboard', { replace: true })
         } catch (err) {
             console.error('Failed to save profile:', err)
+            toast.error('Failed to save. Please try again.')
+            setSaving(false)
         }
-        setSaving(false)
     }
 
     return (
         <div style={{
-            minHeight: '100vh',
+            height: '100vh',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             background: 'var(--color-bg-base)',
             padding: 24,
+            overflow: 'hidden',
         }}>
             <motion.div
                 initial={{ opacity: 0, scale: 0.96 }}
@@ -78,15 +83,17 @@ export default function Onboarding() {
                     background: 'var(--color-bg-surface)',
                     border: '1px solid rgba(255,255,255,0.06)',
                     borderRadius: 'var(--radius-xl)',
-                    padding: '40px 36px',
+                    padding: '28px 32px',
                     maxWidth: 520,
                     width: '100%',
+                    maxHeight: '90vh',
+                    overflow: 'auto',
                     boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
                 }}
             >
                 {/* Logo */}
                 <div style={{
-                    display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32,
+                    display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20,
                     justifyContent: 'center',
                 }}>
                     <div style={{
@@ -103,7 +110,7 @@ export default function Onboarding() {
 
                 {/* Progress indicator */}
                 <div style={{
-                    display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 32,
+                    display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 20,
                 }}>
                     {STEPS.map((s, i) => (
                         <div key={s} style={{
@@ -303,7 +310,7 @@ export default function Onboarding() {
                 {/* Navigation buttons */}
                 <div style={{
                     display: 'flex', justifyContent: 'space-between',
-                    marginTop: 32, gap: 12,
+                    marginTop: 24, gap: 12,
                 }}>
                     {step > 0 ? (
                         <button
