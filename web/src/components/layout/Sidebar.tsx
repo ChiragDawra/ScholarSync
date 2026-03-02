@@ -1,10 +1,14 @@
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/lib/AuthContext'
 import {
     LayoutDashboard, BookOpen, ClipboardList, Timer, Target,
-    BarChart3, Calculator, Sparkles, Settings, LogOut, Rocket
+    BarChart3, Calculator, Sparkles, Settings, LogOut, Rocket, Flame
 } from 'lucide-react'
 import { NavLink, useLocation } from 'react-router-dom'
+import { doc, getDoc } from 'firebase/firestore'
+import { db } from '@shared/api/firebase'
+import type { Streak } from '@shared/types'
 
 const navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -20,6 +24,19 @@ const navItems = [
 export function Sidebar() {
     const { user, profile, signOut } = useAuth()
     const location = useLocation()
+    const [streak, setStreak] = useState(0)
+
+    useEffect(() => {
+        if (!user) return
+        const loadStreak = async () => {
+            try {
+                const streakRef = doc(db, 'users', user.uid, 'streak', 'data')
+                const snap = await getDoc(streakRef)
+                if (snap.exists()) setStreak((snap.data() as Streak).current || 0)
+            } catch { }
+        }
+        loadStreak()
+    }, [user])
 
     return (
         <aside style={{
@@ -119,6 +136,19 @@ export function Sidebar() {
                                     fontSize: 10,
                                     padding: '1px 6px',
                                 }}>Beta</span>
+                            )}
+                            {item.label === 'Pomodoro' && streak > 0 && (
+                                <span style={{
+                                    marginLeft: 'auto',
+                                    display: 'inline-flex', alignItems: 'center', gap: 3,
+                                    fontSize: 11, fontWeight: 700,
+                                    color: '#F97316',
+                                    background: 'rgba(249,115,22,0.1)',
+                                    padding: '1px 8px',
+                                    borderRadius: 'var(--radius-full)',
+                                }}>
+                                    <Flame size={10} /> {streak}
+                                </span>
                             )}
                         </NavLink>
                     )

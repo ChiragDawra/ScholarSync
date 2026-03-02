@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '@/lib/AuthContext'
 import { StatCard } from '../components/dashboard/StatCard'
 import { StudyHeatmap } from '../components/dashboard/StudyHeatmap'
@@ -8,14 +8,64 @@ import { Clock, Flame, BookOpen, Brain, Plus, Calendar } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { format } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
+import { collection, getDocs, query, doc, getDoc, orderBy, limit } from 'firebase/firestore'
+import { db } from '@shared/api/firebase'
+import type { Session, Streak } from '@shared/types'
+import { getDefaultStreak } from '@shared/utils/streakUtils'
 
 export default function Dashboard() {
     const { user, profile } = useAuth()
     const navigate = useNavigate()
     const today = new Date()
 
-    // Generate sample heatmap data for demo
+    const [sessions, setSessions] = useState<Session[]>([])
+    const [streak, setStreak] = useState<Streak>(getDefaultStreak())
+    const [loading, setLoading] = useState(true)
+
+    // Load real data from Firestore
+    useEffect(() => {
+        if (!user) return
+        const load = async () => {
+            try {
+                // Load sessions
+                const sessionsRef = collection(db, 'users', user.uid, 'sessions')
+                const q = query(sessionsRef, orderBy('date', 'desc'), limit(50))
+                const snap = await getDocs(q)
+                setSessions(snap.docs.map(d => ({ id: d.id, ...d.data() } as Session)))
+
+                // Load streak
+                const streakRef = doc(db, 'users', user.uid, 'streak', 'data')
+                const streakSnap = await getDoc(streakRef)
+                if (streakSnap.exists()) {
+                    setStreak(streakSnap.data() as Streak)
+                }
+            } catch (err) {
+                console.warn('Could not load dashboard data:', err)
+            } finally {
+                setLoading(false)
+            }
+        }
+        load()
+    }, [user])
+
+    // Calculate real stats
+    const totalStudyHours = useMemo(() => {
+        const total = sessions.reduce((sum, s) => sum + (s.durationMinutes || 0), 0)
+        return (total / 60).toFixed(1)
+    }, [sessions])
+
+    const avgFocusScore = useMemo(() => {
+        if (sessions.length === 0) return 0
+        const total = sessions.reduce((sum, s) => sum + (s.focusScore || 0), 0)
+        return Math.round(total / sessions.length)
+    }, [sessions])
+
+    // Use real heatmap data or fallback to demo
     const heatmapData = useMemo(() => {
+        if (Object.keys(streak.heatmap).length > 0) {
+            return streak.heatmap
+        }
+        // Fallback demo data if no real data yet
         const data: Record<string, number> = {}
         const now = new Date()
         for (let i = 0; i < 180; i++) {
@@ -28,7 +78,7 @@ export default function Dashboard() {
             }
         }
         return data
-    }, [])
+    }, [streak.heatmap])
 
     const scheduleItems = [
         {
@@ -101,32 +151,31 @@ export default function Dashboard() {
                     icon={Clock}
                     iconColor="#6366F1"
                     label="Study Hours"
-                    value="32.5h"
-                    subtitle="vs last week"
-                    trend={{ value: '+12%', positive: true }}
+                    value={`${totalStudyHours}h`}
+                    subtitle={`${sessions.length} sessions total`}
+                    trend={sessions.length > 0 ? { value: `${sessions.length}`, positive: true } : undefined}
                 />
                 <StatCard
                     icon={Flame}
                     iconColor="#F97316"
                     label="Day Streak"
-                    value="12"
-                    subtitle="Keep it burning!"
-                    badge={{ text: '+1', color: '#22C55E' }}
+                    value={streak.current.toString()}
+                    subtitle={streak.current > 0 ? 'Keep it burning!' : 'Start a session!'}
+                    badge={streak.current > 0 ? { text: `Best: ${streak.longest}`, color: '#22C55E' } : undefined}
                 />
                 <StatCard
                     icon={BookOpen}
                     iconColor="#A855F7"
-                    label="Upcoming Exams"
-                    value="3"
-                    subtitle="Next: Physics in 4 days"
+                    label="Avg Focus"
+                    value={sessions.length > 0 ? `${avgFocusScore}%` : '—'}
+                    subtitle={sessions.length > 0 ? 'Across all sessions' : 'Complete a session'}
                 />
                 <StatCard
                     icon={Brain}
                     iconColor="#EC4899"
-                    label="Focus Area"
-                    value="Chemistry"
-                    subtitle="Lowest study time"
-                    badge={{ text: '1 Overdue', color: '#EF4444' }}
+                    label="Total Days"
+                    value={Object.keys(streak.heatmap).length.toString()}
+                    subtitle="Days studied"
                 />
             </div>
 
@@ -138,10 +187,12 @@ export default function Dashboard() {
 
             {/* AI Insight Card */}
             <AiInsightCard
-                message="You study 40% less before weekends. Your Physics exam is in 4 days — start today with 2 Pomodoro sessions focused on Mechanics to avoid last-minute cramming."
+                message={streak.current > 0
+                    ? `Great job! You're on a ${streak.current}-day streak. Your average focus score is ${avgFocusScore}%. Try a Pomodoro session today to keep the momentum going!`
+                    : 'Start your first Pomodoro session to build your streak! Select a subject and hit focus to begin tracking your study patterns.'}
                 onDismiss={() => { }}
-                onAction={() => navigate('/ai-coach')}
-                actionLabel="Create Plan"
+                onAction={() => navigate('/pomodoro')}
+                actionLabel={streak.current > 0 ? 'Study Now' : 'Start Session'}
             />
 
             {/* FAB */}
@@ -150,7 +201,7 @@ export default function Dashboard() {
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.3, type: 'spring', stiffness: 260, damping: 20 }}
-                onClick={() => { }}
+                onClick={() => navigate('/pomodoro')}
             >
                 <Plus size={24} />
             </motion.button>
