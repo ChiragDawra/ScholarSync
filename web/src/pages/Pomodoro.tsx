@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { RotateCcw, Play, Pause, Flame, BookOpen, Zap } from 'lucide-react'
+import { RotateCcw, Play, Pause, Flame, BookOpen, Zap, Square } from 'lucide-react'
 import { collection, addDoc, getDocs, query, orderBy, limit, doc, getDoc, setDoc, Timestamp } from 'firebase/firestore'
 import toast from 'react-hot-toast'
 
@@ -31,9 +31,10 @@ export default function Pomodoro() {
     const [streak, setStreak] = useState<Streak>(getDefaultStreak())
     const [selectedPreset, setSelectedPreset] = useState<PresetKey>('25/5')
     const [sessionSaved, setSessionSaved] = useState(false)
+    const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null)
 
     const subjects: Subject[] = profile?.subjects || []
-    const selectedSubject = subjects.find(s => s.id === pomodoro.subjectId)
+    const selectedSubject = subjects.find(s => s.id === (pomodoro.subjectId || selectedSubjectId))
 
     // Load sessions & streak from Firestore
     useEffect(() => {
@@ -114,10 +115,15 @@ export default function Pomodoro() {
         }
     }, [user, pomodoro, todos, streak, profile])
 
-    const handleStart = (subjectId: string) => {
+    const handleStart = () => {
+        if (!selectedSubjectId) return
         setTodos([])
         setSessionSaved(false)
-        pomodoro.start(subjectId)
+        pomodoro.start(selectedSubjectId)
+    }
+
+    const handleSelectSubject = (id: string) => {
+        setSelectedSubjectId(id)
     }
 
     const handlePresetChange = (key: PresetKey) => {
@@ -143,7 +149,7 @@ export default function Pomodoro() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24, alignItems: 'start' }}>
                 {/* ─── Left: Timer ─── */}
                 <div>
-                    {/* Subject tabs */}
+                    {/* Subject tabs — always visible when idle */}
                     {!isActive && (
                         <motion.div
                             initial={{ opacity: 0, y: 10 }}
@@ -167,12 +173,16 @@ export default function Pomodoro() {
                                         key={subject.id}
                                         whileHover={{ scale: 1.03 }}
                                         whileTap={{ scale: 0.97 }}
-                                        onClick={() => handleStart(subject.id)}
+                                        onClick={() => handleSelectSubject(subject.id)}
                                         style={{
                                             padding: '8px 18px',
                                             borderRadius: 'var(--radius-full)',
-                                            border: '1px solid rgba(255,255,255,0.08)',
-                                            background: `${subject.color}10`,
+                                            border: selectedSubjectId === subject.id
+                                                ? `2px solid ${subject.color}`
+                                                : '1px solid rgba(255,255,255,0.08)',
+                                            background: selectedSubjectId === subject.id
+                                                ? `${subject.color}20`
+                                                : `${subject.color}10`,
                                             color: subject.color,
                                             fontSize: 13, fontWeight: 600,
                                             cursor: 'pointer',
@@ -252,45 +262,93 @@ export default function Pomodoro() {
                             </div>
                         )}
 
-                        {/* Controls */}
-                        <div style={{ display: 'flex', gap: 16, marginTop: 28 }}>
-                            {isActive && (
+                        {/* Controls — ALWAYS visible */}
+                        <div style={{ display: 'flex', gap: 16, marginTop: 28, alignItems: 'center' }}>
+                            {/* IDLE: Show Start Focus button */}
+                            {!isActive && (
                                 <motion.button
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
-                                    onClick={() => pomodoro.reset()}
+                                    onClick={handleStart}
+                                    disabled={!selectedSubjectId}
                                     style={{
-                                        width: 48, height: 48, borderRadius: '50%',
-                                        background: 'rgba(255,255,255,0.06)',
-                                        border: '1px solid rgba(255,255,255,0.08)',
-                                        color: 'var(--color-text-secondary)',
-                                        cursor: 'pointer',
+                                        height: 56, borderRadius: 'var(--radius-full)',
+                                        background: selectedSubjectId
+                                            ? 'linear-gradient(135deg, var(--color-brand), var(--color-brand-alt))'
+                                            : 'rgba(255,255,255,0.06)',
+                                        border: 'none',
+                                        color: selectedSubjectId ? 'white' : 'var(--color-text-muted)',
+                                        cursor: selectedSubjectId ? 'pointer' : 'default',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        gap: 10, padding: '0 32px',
+                                        fontSize: 16, fontWeight: 700,
+                                        boxShadow: selectedSubjectId ? '0 4px 20px rgba(91,91,214,0.4)' : 'none',
+                                        fontFamily: 'var(--font-sans)',
+                                        opacity: selectedSubjectId ? 1 : 0.5,
                                     }}
                                 >
-                                    <RotateCcw size={18} />
+                                    <Play size={20} />
+                                    {selectedSubjectId ? 'Start Focus' : 'Select a Subject'}
                                 </motion.button>
                             )}
 
+                            {/* ACTIVE: Show Reset + Pause/Resume + Stop */}
                             {isActive && (
-                                <motion.button
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    onClick={() => pomodoro.state === 'paused' ? pomodoro.resume() : pomodoro.pause()}
-                                    style={{
-                                        width: 64, height: 64, borderRadius: '50%',
-                                        background: pomodoro.state === 'paused'
-                                            ? 'linear-gradient(135deg, var(--color-brand), var(--color-brand-alt))'
-                                            : 'rgba(255,255,255,0.08)',
-                                        border: 'none',
-                                        color: 'white',
-                                        cursor: 'pointer',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        boxShadow: pomodoro.state === 'paused' ? '0 4px 20px rgba(91,91,214,0.4)' : 'none',
-                                    }}
-                                >
-                                    {pomodoro.state === 'paused' ? <Play size={24} /> : <Pause size={24} />}
-                                </motion.button>
+                                <>
+                                    <motion.button
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        onClick={() => pomodoro.reset()}
+                                        title="Reset"
+                                        style={{
+                                            width: 48, height: 48, borderRadius: '50%',
+                                            background: 'rgba(255,255,255,0.06)',
+                                            border: '1px solid rgba(255,255,255,0.08)',
+                                            color: 'var(--color-text-secondary)',
+                                            cursor: 'pointer',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        }}
+                                    >
+                                        <RotateCcw size={18} />
+                                    </motion.button>
+
+                                    <motion.button
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        onClick={() => pomodoro.state === 'paused' ? pomodoro.resume() : pomodoro.pause()}
+                                        title={pomodoro.state === 'paused' ? 'Resume' : 'Pause'}
+                                        style={{
+                                            width: 64, height: 64, borderRadius: '50%',
+                                            background: pomodoro.state === 'paused'
+                                                ? 'linear-gradient(135deg, var(--color-brand), var(--color-brand-alt))'
+                                                : 'rgba(255,255,255,0.08)',
+                                            border: 'none',
+                                            color: 'white',
+                                            cursor: 'pointer',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            boxShadow: pomodoro.state === 'paused' ? '0 4px 20px rgba(91,91,214,0.4)' : 'none',
+                                        }}
+                                    >
+                                        {pomodoro.state === 'paused' ? <Play size={24} /> : <Pause size={24} />}
+                                    </motion.button>
+
+                                    <motion.button
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        onClick={() => { pomodoro.reset(); setSelectedSubjectId(null) }}
+                                        title="Stop & End"
+                                        style={{
+                                            width: 48, height: 48, borderRadius: '50%',
+                                            background: 'rgba(239,68,68,0.1)',
+                                            border: '1px solid rgba(239,68,68,0.2)',
+                                            color: '#EF4444',
+                                            cursor: 'pointer',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        }}
+                                    >
+                                        <Square size={16} />
+                                    </motion.button>
+                                </>
                             )}
                         </div>
                     </div>
