@@ -95,148 +95,124 @@ export default function Landing() {
                     textAlign: 'center',
                     padding: '120px 24px 80px',
                 }}>
-                    {/* Animated particle constellation background */}
+                    {/* Video background */}
                     <AnimatedBackground />
 
-                    {/* Animated gradient orbs */}
-                    <motion.div
-                        animate={{
-                            x: [0, 30, -20, 0],
-                            y: [0, -20, 30, 0],
-                            scale: [1, 1.1, 0.9, 1],
-                        }}
-                        transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-                        style={{
-                            position: 'absolute', width: 600, height: 600, borderRadius: '50%',
-                            background: 'radial-gradient(circle, rgba(91,91,214,0.2) 0%, transparent 70%)',
-                            top: '5%', right: '10%', filter: 'blur(40px)',
-                        }}
-                    />
-                    <motion.div
-                        animate={{
-                            x: [0, -25, 15, 0],
-                            y: [0, 25, -15, 0],
-                            scale: [1, 0.95, 1.05, 1],
-                        }}
-                        transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
-                        style={{
-                            position: 'absolute', width: 500, height: 500, borderRadius: '50%',
-                            background: 'radial-gradient(circle, rgba(124,58,237,0.15) 0%, transparent 70%)',
-                            bottom: '10%', left: '5%', filter: 'blur(40px)',
-                        }}
-                    />
-                    <motion.div
-                        animate={{
-                            x: [0, 15, -10, 0],
-                            y: [0, -10, 20, 0],
-                        }}
-                        transition={{ duration: 18, repeat: Infinity, ease: 'linear' }}
-                        style={{
-                            position: 'absolute', width: 300, height: 300, borderRadius: '50%',
-                            background: 'radial-gradient(circle, rgba(236,72,153,0.1) 0%, transparent 70%)',
-                            top: '40%', left: '50%', filter: 'blur(30px)',
-                        }}
-                    />
-
-                    {/* Badge */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.5, duration: 0.6 }}
-                        style={{
-                            display: 'inline-flex', alignItems: 'center', gap: 8,
-                            padding: '6px 16px', borderRadius: 'var(--radius-full)',
-                            background: 'rgba(91,91,214,0.1)',
-                            border: '1px solid rgba(91,91,214,0.3)',
-                            marginBottom: 28,
-                            position: 'relative', zIndex: 1,
-                        }}
-                    >
-                        <Zap size={14} color="var(--color-brand)" />
-                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-brand)' }}>
-                            Powered by AI · Built for Students
-                        </span>
-                    </motion.div>
-
-                    {/* Main Headline */}
-                    <motion.h1
-                        initial={{ opacity: 0, y: 30 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.7, duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] }}
-                        style={{
-                            fontSize: 'clamp(40px, 6vw, 72px)',
-                            fontWeight: 800,
-                            lineHeight: 1.1,
-                            letterSpacing: '-0.03em',
-                            maxWidth: 800,
-                            position: 'relative', zIndex: 1,
-                            marginBottom: 20,
-                        }}
-                    >
-                        Your Academic{' '}
-                        <span style={{
-                            background: 'linear-gradient(135deg, var(--color-brand) 0%, var(--color-brand-alt) 50%, #EC4899 100%)',
-                            WebkitBackgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent',
-                        }}>
-                            Operating System
-                        </span>
-                    </motion.h1>
-
-                    {/* Subtitle */}
-                    <motion.p
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.9, duration: 0.6 }}
-                        style={{
-                            fontSize: 'clamp(16px, 2vw, 20px)',
-                            color: 'var(--color-text-secondary)',
-                            maxWidth: 560,
-                            lineHeight: 1.7,
-                            position: 'relative', zIndex: 1,
-                            marginBottom: 40,
-                        }}
-                    >
-                        One app. Track exams, crush assignments, build streaks,
-                        and let AI plan your study schedule — all from one beautiful dashboard.
-                    </motion.p>
-
-                    {/* CTA Buttons */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 1.1, duration: 0.6 }}
-                        style={{
-                            display: 'flex', gap: 16, position: 'relative', zIndex: 1,
-                        }}
-                    >
-                        <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.97 }}
-                            className="btn btn-lg"
-                            onClick={() => navigate('/login')}
+                    {/* 3D perspective wrapper for hero content */}
+                    <div style={{
+                        position: 'relative', zIndex: 3,
+                        perspective: '1200px',
+                        display: 'flex', flexDirection: 'column',
+                        alignItems: 'center',
+                    }}>
+                        {/* Badge */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.5, duration: 0.6 }}
                             style={{
-                                background: 'linear-gradient(135deg, var(--color-brand), var(--color-brand-alt))',
-                                color: 'white',
-                                padding: '0 32px',
-                                fontSize: 16,
-                                fontWeight: 700,
-                                boxShadow: '0 4px 24px rgba(91,91,214,0.4)',
+                                display: 'inline-flex', alignItems: 'center', gap: 8,
+                                padding: '6px 16px', borderRadius: 'var(--radius-full)',
+                                background: 'rgba(91,91,214,0.15)',
+                                border: '1px solid rgba(91,91,214,0.3)',
+                                marginBottom: 28,
+                                backdropFilter: 'blur(12px)',
+                                transform: 'translateZ(60px)',
                             }}
                         >
-                            Get Started Free <ArrowRight size={18} />
-                        </motion.button>
-                        <motion.button
-                            whileHover={{ scale: 1.03 }}
-                            className="btn btn-outline btn-lg"
-                            onClick={() => {
-                                document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })
+                            <Zap size={14} color="var(--color-brand)" />
+                            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-brand)' }}>
+                                Powered by AI · Built for Students
+                            </span>
+                        </motion.div>
+
+                        {/* Main Headline */}
+                        <motion.h1
+                            initial={{ opacity: 0, y: 30 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.7, duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] }}
+                            style={{
+                                fontSize: 'clamp(40px, 6vw, 72px)',
+                                fontWeight: 800,
+                                lineHeight: 1.1,
+                                letterSpacing: '-0.03em',
+                                maxWidth: 800,
+                                marginBottom: 20,
+                                transform: 'translateZ(40px)',
+                                textShadow: '0 4px 30px rgba(0,0,0,0.5)',
                             }}
-                            style={{ padding: '0 28px', fontSize: 16, borderRadius: 'var(--radius-full)' }}
                         >
-                            See Features
-                        </motion.button>
-                    </motion.div>
+                            Your Academic{' '}
+                            <span style={{
+                                background: 'linear-gradient(135deg, var(--color-brand) 0%, var(--color-brand-alt) 50%, #EC4899 100%)',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                            }}>
+                                Operating System
+                            </span>
+                        </motion.h1>
+
+                        {/* Subtitle */}
+                        <motion.p
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.9, duration: 0.6 }}
+                            style={{
+                                fontSize: 'clamp(16px, 2vw, 20px)',
+                                color: 'var(--color-text-secondary)',
+                                maxWidth: 560,
+                                lineHeight: 1.7,
+                                marginBottom: 40,
+                                transform: 'translateZ(30px)',
+                                textShadow: '0 2px 20px rgba(0,0,0,0.4)',
+                            }}
+                        >
+                            One app. Track exams, crush assignments, build streaks,
+                            and let AI plan your study schedule — all from one beautiful dashboard.
+                        </motion.p>
+
+                        {/* CTA Buttons */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 1.1, duration: 0.6 }}
+                            style={{
+                                display: 'flex', gap: 16,
+                                transform: 'translateZ(50px)',
+                            }}
+                        >
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.97 }}
+                                className="btn btn-lg"
+                                onClick={() => navigate('/login')}
+                                style={{
+                                    background: 'linear-gradient(135deg, var(--color-brand), var(--color-brand-alt))',
+                                    color: 'white',
+                                    padding: '0 32px',
+                                    fontSize: 16,
+                                    fontWeight: 700,
+                                    boxShadow: '0 4px 24px rgba(91,91,214,0.4)',
+                                }}
+                            >
+                                Get Started Free <ArrowRight size={18} />
+                            </motion.button>
+                            <motion.button
+                                whileHover={{ scale: 1.03 }}
+                                className="btn btn-outline btn-lg"
+                                onClick={() => {
+                                    document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })
+                                }}
+                                style={{
+                                    padding: '0 28px', fontSize: 16,
+                                    borderRadius: 'var(--radius-full)',
+                                    backdropFilter: 'blur(8px)',
+                                }}
+                            >
+                                See Features
+                            </motion.button>
+                        </motion.div>
+                    </div>
 
 
                     {/* Scroll indicator */}
