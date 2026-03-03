@@ -558,8 +558,7 @@ input[type="time"].input::-webkit-datetime-edit-ampm-field:focus {
   padding: 32px;
   width: 100%;
   max-width: 520px;
-  max-height: 90vh;
-  overflow-y: auto;
+  overflow: visible;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
 }
 
