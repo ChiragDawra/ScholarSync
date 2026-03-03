@@ -21,7 +21,7 @@ interface Todo {
     done: boolean
 }
 
-type PresetKey = '25/5' | '50/10' | 'debug'
+type PresetKey = '25/5' | '50/10' | 'custom' | 'debug'
 
 export default function Pomodoro() {
     const { user, profile } = useAuth()
@@ -126,9 +126,32 @@ export default function Pomodoro() {
         setSelectedSubjectId(id)
     }
 
+    const [customFocus, setCustomFocus] = useState(30)
+    const [customBreak, setCustomBreak] = useState(5)
+
     const handlePresetChange = (key: PresetKey) => {
         setSelectedPreset(key)
-        pomodoro.setConfig(POMODORO_PRESETS[key])
+        if (key === 'custom') {
+            pomodoro.setConfig({ focusMinutes: customFocus, breakMinutes: customBreak })
+        } else {
+            pomodoro.setConfig(POMODORO_PRESETS[key])
+        }
+    }
+
+    const handleCustomFocusChange = (val: number) => {
+        const clamped = Math.max(1, Math.min(120, val))
+        setCustomFocus(clamped)
+        if (selectedPreset === 'custom') {
+            pomodoro.setConfig({ focusMinutes: clamped, breakMinutes: customBreak })
+        }
+    }
+
+    const handleCustomBreakChange = (val: number) => {
+        const clamped = Math.max(1, Math.min(30, val))
+        setCustomBreak(clamped)
+        if (selectedPreset === 'custom') {
+            pomodoro.setConfig({ focusMinutes: customFocus, breakMinutes: clamped })
+        }
     }
 
     const isActive = pomodoro.state !== 'idle'
@@ -241,24 +264,99 @@ export default function Pomodoro() {
 
                         {/* Duration presets */}
                         {!isActive && (
-                            <div style={{ display: 'flex', gap: 8, marginTop: 28 }}>
-                                {(['25/5', '50/10', 'debug'] as PresetKey[]).map(key => (
-                                    <button
-                                        key={key}
-                                        onClick={() => handlePresetChange(key)}
-                                        style={{
-                                            padding: '6px 16px',
-                                            borderRadius: 'var(--radius-full)',
-                                            border: selectedPreset === key ? '1px solid var(--color-brand)' : '1px solid rgba(255,255,255,0.08)',
-                                            background: selectedPreset === key ? 'rgba(91,91,214,0.12)' : 'transparent',
-                                            color: selectedPreset === key ? 'var(--color-brand)' : 'var(--color-text-muted)',
-                                            fontSize: 13, fontWeight: 600,
-                                            cursor: 'pointer',
-                                        }}
-                                    >
-                                        {key === 'debug' ? '⚡ 30s' : key}
-                                    </button>
-                                ))}
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, marginTop: 28 }}>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                    {(['25/5', '50/10', 'custom', 'debug'] as PresetKey[]).map(key => (
+                                        <button
+                                            key={key}
+                                            onClick={() => handlePresetChange(key)}
+                                            style={{
+                                                padding: '6px 16px',
+                                                borderRadius: 'var(--radius-full)',
+                                                border: selectedPreset === key ? '1px solid var(--color-brand)' : '1px solid rgba(255,255,255,0.08)',
+                                                background: selectedPreset === key ? 'rgba(91,91,214,0.12)' : 'transparent',
+                                                color: selectedPreset === key ? 'var(--color-brand)' : 'var(--color-text-muted)',
+                                                fontSize: 13, fontWeight: 600,
+                                                cursor: 'pointer',
+                                            }}
+                                        >
+                                            {key === 'debug' ? '⚡ 30s' : key === 'custom' ? '⚙️ Custom' : key}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Custom duration inputs */}
+                                {selectedPreset === 'custom' && (
+                                    <div style={{
+                                        display: 'flex', gap: 16, alignItems: 'center',
+                                        padding: '12px 20px',
+                                        background: 'var(--color-bg-raised)',
+                                        borderRadius: 'var(--radius-md)',
+                                        border: '1px solid rgba(255,255,255,0.06)',
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)' }}>Focus</label>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                <button
+                                                    onClick={() => handleCustomFocusChange(customFocus - 5)}
+                                                    style={{
+                                                        width: 24, height: 24, borderRadius: 'var(--radius-sm)',
+                                                        background: 'var(--color-bg-surface)', border: '1px solid rgba(255,255,255,0.08)',
+                                                        color: 'var(--color-text-secondary)', cursor: 'pointer',
+                                                        fontSize: 14, fontWeight: 700,
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                    }}
+                                                >−</button>
+                                                <span style={{ fontSize: 16, fontWeight: 700, minWidth: 32, textAlign: 'center', color: 'var(--color-brand)' }}>
+                                                    {customFocus}
+                                                </span>
+                                                <button
+                                                    onClick={() => handleCustomFocusChange(customFocus + 5)}
+                                                    style={{
+                                                        width: 24, height: 24, borderRadius: 'var(--radius-sm)',
+                                                        background: 'var(--color-bg-surface)', border: '1px solid rgba(255,255,255,0.08)',
+                                                        color: 'var(--color-text-secondary)', cursor: 'pointer',
+                                                        fontSize: 14, fontWeight: 700,
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                    }}
+                                                >+</button>
+                                            </div>
+                                            <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>min</span>
+                                        </div>
+
+                                        <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.08)' }} />
+
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)' }}>Break</label>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                <button
+                                                    onClick={() => handleCustomBreakChange(customBreak - 1)}
+                                                    style={{
+                                                        width: 24, height: 24, borderRadius: 'var(--radius-sm)',
+                                                        background: 'var(--color-bg-surface)', border: '1px solid rgba(255,255,255,0.08)',
+                                                        color: 'var(--color-text-secondary)', cursor: 'pointer',
+                                                        fontSize: 14, fontWeight: 700,
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                    }}
+                                                >−</button>
+                                                <span style={{ fontSize: 16, fontWeight: 700, minWidth: 24, textAlign: 'center', color: '#22C55E' }}>
+                                                    {customBreak}
+                                                </span>
+                                                <button
+                                                    onClick={() => handleCustomBreakChange(customBreak + 1)}
+                                                    style={{
+                                                        width: 24, height: 24, borderRadius: 'var(--radius-sm)',
+                                                        background: 'var(--color-bg-surface)', border: '1px solid rgba(255,255,255,0.08)',
+                                                        color: 'var(--color-text-secondary)', cursor: 'pointer',
+                                                        fontSize: 14, fontWeight: 700,
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                    }}
+                                                >+</button>
+                                            </div>
+                                            <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>min</span>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
 

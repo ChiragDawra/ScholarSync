@@ -7,6 +7,8 @@ import { db } from '@shared/api/firebase'
 import type { Exam, Subject } from '@shared/types'
 import toast from 'react-hot-toast'
 import { differenceInDays, differenceInHours, format } from 'date-fns'
+import { DatePicker } from '@/components/ui/DatePicker'
+import { TimePicker } from '@/components/ui/TimePicker'
 
 function getCountdownInfo(examDate: Date) {
     const now = new Date()
@@ -347,21 +349,11 @@ export default function Exams() {
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                                 <div className="form-group">
                                     <label>Exam Date</label>
-                                    <input
-                                        type="date"
-                                        className="input"
-                                        value={formDate}
-                                        onChange={e => setFormDate(e.target.value)}
-                                    />
+                                    <DatePicker value={formDate} onChange={setFormDate} />
                                 </div>
                                 <div className="form-group">
                                     <label>Time</label>
-                                    <input
-                                        type="time"
-                                        className="input"
-                                        value={formTime}
-                                        onChange={e => setFormTime(e.target.value)}
-                                    />
+                                    <TimePicker value={formTime} onChange={setFormTime} />
                                 </div>
                             </div>
 

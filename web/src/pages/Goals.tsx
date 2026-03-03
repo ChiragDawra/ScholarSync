@@ -7,6 +7,7 @@ import { db } from '@shared/api/firebase'
 import type { Goal } from '@shared/types'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
+import { DatePicker } from '@/components/ui/DatePicker'
 
 function ProgressRing({ progress, size = 56, strokeWidth = 5 }: { progress: number; size?: number; strokeWidth?: number }) {
     const radius = (size - strokeWidth) / 2
@@ -398,12 +399,7 @@ export default function Goals() {
 
                             <div className="form-group">
                                 <label>Target Date *</label>
-                                <input
-                                    type="date"
-                                    className="input"
-                                    value={formTargetDate}
-                                    onChange={e => setFormTargetDate(e.target.value)}
-                                />
+                                <DatePicker value={formTargetDate} onChange={setFormTargetDate} />
                             </div>
 
                             <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
