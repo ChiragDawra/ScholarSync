@@ -9,45 +9,53 @@ const SUBJECT_COLORS = ['#6366F1', '#A855F7', '#EC4899', '#3B82F6', '#10B981', '
 export default function Settings() {
     const { user, profile, signOut, saveProfile } = useAuth()
 
-    // Editable fields
-    const [editingName, setEditingName] = useState(false)
-    const [editingCollege, setEditingCollege] = useState(false)
-    const [nameValue, setNameValue] = useState(profile?.name || '')
-    const [collegeValue, setCollegeValue] = useState(profile?.college || '')
+    // Edit profile modal
+    const [editing, setEditing] = useState(false)
+    const [formName, setFormName] = useState('')
+    const [formCollege, setFormCollege] = useState('')
+    const [formGrading, setFormGrading] = useState<'cgpa' | 'percentage'>('cgpa')
+    const [formCutoff, setFormCutoff] = useState('23:00')
+    const [savingProfile, setSavingProfile] = useState(false)
 
     // Subjects
     const [newSubject, setNewSubject] = useState('')
     const [addingSubject, setAddingSubject] = useState(false)
 
-    // Preferences
+    // Sign out confirm
+    const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
+
+    // Preferences saving
     const [savingPref, setSavingPref] = useState(false)
 
-    const handleSaveName = async () => {
-        if (!nameValue.trim()) { toast.error('Name cannot be empty'); return }
-        try {
-            await saveProfile({ name: nameValue.trim() })
-            setEditingName(false)
-            toast.success('Name updated')
-        } catch { toast.error('Failed to save') }
+    const openEditForm = () => {
+        setFormName(profile?.name || '')
+        setFormCollege(profile?.college || '')
+        setFormGrading(profile?.gradingSystem || 'cgpa')
+        setFormCutoff(profile?.streakCutoffTime || '23:00')
+        setEditing(true)
     }
 
-    const handleSaveCollege = async () => {
+    const handleSaveProfile = async () => {
+        if (!formName.trim()) { toast.error('Name is required'); return }
+        setSavingProfile(true)
         try {
-            await saveProfile({ college: collegeValue.trim() })
-            setEditingCollege(false)
-            toast.success('College updated')
+            await saveProfile({
+                name: formName.trim(),
+                college: formCollege.trim(),
+                gradingSystem: formGrading,
+                streakCutoffTime: formCutoff,
+            })
+            setEditing(false)
+            toast.success('Profile updated!')
         } catch { toast.error('Failed to save') }
+        finally { setSavingProfile(false) }
     }
 
     const handleAddSubject = async () => {
         if (!newSubject.trim()) return
         const existing = profile?.subjects || []
         const color = SUBJECT_COLORS[existing.length % SUBJECT_COLORS.length]
-        const subject = {
-            id: Date.now().toString(),
-            name: newSubject.trim(),
-            color,
-        }
+        const subject = { id: Date.now().toString(), name: newSubject.trim(), color }
         try {
             await saveProfile({ subjects: [...existing, subject] })
             setNewSubject('')
@@ -64,22 +72,15 @@ export default function Settings() {
         } catch { toast.error('Failed to remove') }
     }
 
-    const handleGradingChange = async (system: 'cgpa' | 'percentage') => {
-        setSavingPref(true)
-        try {
-            await saveProfile({ gradingSystem: system })
-            toast.success('Grading system updated')
-        } catch { toast.error('Failed to save') }
-        finally { setSavingPref(false) }
+    const handleSignOut = () => {
+        setShowSignOutConfirm(false)
+        signOut()
     }
 
-    const handleCutoffChange = async (time: string) => {
-        setSavingPref(true)
-        try {
-            await saveProfile({ streakCutoffTime: time })
-            toast.success('Cutoff time updated')
-        } catch { toast.error('Failed to save') }
-        finally { setSavingPref(false) }
+    const formatCutoff = (time: string) => {
+        const h = parseInt(time.split(':')[0])
+        if (time === '23:59') return 'Midnight'
+        return h === 0 ? '12 AM' : h > 12 ? `${h - 12} PM` : h === 12 ? '12 PM' : `${h} AM`
     }
 
     return (
@@ -89,11 +90,16 @@ export default function Settings() {
                 Manage your profile, subjects, and preferences
             </p>
 
-            {/* Profile */}
+            {/* Profile Card */}
             <div className="surface-card" style={{ marginBottom: 16 }}>
-                <h3 className="text-heading-md" style={{ marginBottom: 20 }}>Profile</h3>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                    <h3 className="text-heading-md">Profile</h3>
+                    <button className="btn btn-sm btn-outline" onClick={openEditForm}>
+                        <Pencil size={13} /> Edit Profile
+                    </button>
+                </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 20 }}>
                     <div style={{
                         width: 64, height: 64, borderRadius: '50%',
                         background: 'linear-gradient(135deg, var(--color-brand), var(--color-brand-alt))',
@@ -108,84 +114,31 @@ export default function Settings() {
                             </span>
                         )}
                     </div>
-                    <div style={{ flex: 1 }}>
-                        <div className="text-body-sm" style={{ color: 'var(--color-text-muted)', marginBottom: 2 }}>
-                            {user?.email}
-                        </div>
+                    <div>
+                        <div className="text-heading-sm" style={{ marginBottom: 2 }}>{profile?.name || 'Not set'}</div>
+                        <div className="text-body-sm" style={{ color: 'var(--color-text-muted)' }}>{user?.email}</div>
+                        {profile?.college && (
+                            <div className="text-body-sm" style={{ color: 'var(--color-text-secondary)', marginTop: 2 }}>
+                                {profile.college}
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                {/* Name */}
-                <div style={{ marginBottom: 16 }}>
-                    <label className="text-label" style={{ color: 'var(--color-text-muted)', display: 'block', marginBottom: 6 }}>
-                        Display Name
-                    </label>
-                    {editingName ? (
-                        <div style={{ display: 'flex', gap: 8 }}>
-                            <input
-                                className="input"
-                                value={nameValue}
-                                onChange={e => setNameValue(e.target.value)}
-                                autoFocus
-                                onKeyDown={e => e.key === 'Enter' && handleSaveName()}
-                            />
-                            <button className="btn btn-sm btn-primary" onClick={handleSaveName}>
-                                <Check size={14} />
-                            </button>
-                            <button className="btn btn-sm btn-ghost" onClick={() => { setEditingName(false); setNameValue(profile?.name || '') }}>
-                                <X size={14} />
-                            </button>
-                        </div>
-                    ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <span className="text-body-lg" style={{ fontWeight: 500 }}>{profile?.name || 'Not set'}</span>
-                            <button
-                                className="btn btn-icon btn-sm"
-                                onClick={() => { setEditingName(true); setNameValue(profile?.name || '') }}
-                                style={{ width: 28, height: 28 }}
-                            >
-                                <Pencil size={12} />
-                            </button>
-                        </div>
-                    )}
-                </div>
-
-                {/* College */}
-                <div>
-                    <label className="text-label" style={{ color: 'var(--color-text-muted)', display: 'block', marginBottom: 6 }}>
-                        College / University
-                    </label>
-                    {editingCollege ? (
-                        <div style={{ display: 'flex', gap: 8 }}>
-                            <input
-                                className="input"
-                                value={collegeValue}
-                                onChange={e => setCollegeValue(e.target.value)}
-                                autoFocus
-                                onKeyDown={e => e.key === 'Enter' && handleSaveCollege()}
-                                placeholder="Enter your college"
-                            />
-                            <button className="btn btn-sm btn-primary" onClick={handleSaveCollege}>
-                                <Check size={14} />
-                            </button>
-                            <button className="btn btn-sm btn-ghost" onClick={() => { setEditingCollege(false); setCollegeValue(profile?.college || '') }}>
-                                <X size={14} />
-                            </button>
-                        </div>
-                    ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <span className="text-body-lg" style={{ fontWeight: 500, color: profile?.college ? 'var(--color-text-primary)' : 'var(--color-text-muted)' }}>
-                                {profile?.college || 'Not set'}
-                            </span>
-                            <button
-                                className="btn btn-icon btn-sm"
-                                onClick={() => { setEditingCollege(true); setCollegeValue(profile?.college || '') }}
-                                style={{ width: 28, height: 28 }}
-                            >
-                                <Pencil size={12} />
-                            </button>
-                        </div>
-                    )}
+                {/* Inline details */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                    <div>
+                        <span className="text-label" style={{ color: 'var(--color-text-muted)', display: 'block', marginBottom: 4 }}>
+                            Grading System
+                        </span>
+                        <span className="text-body-md">{profile?.gradingSystem === 'cgpa' ? '10-Point CGPA' : 'Percentage'}</span>
+                    </div>
+                    <div>
+                        <span className="text-label" style={{ color: 'var(--color-text-muted)', display: 'block', marginBottom: 4 }}>
+                            Streak Cutoff
+                        </span>
+                        <span className="text-body-md">{formatCutoff(profile?.streakCutoffTime || '23:00')}</span>
+                    </div>
                 </div>
             </div>
 
@@ -193,10 +146,7 @@ export default function Settings() {
             <div className="surface-card" style={{ marginBottom: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                     <h3 className="text-heading-md">Subjects</h3>
-                    <button
-                        className="btn btn-sm btn-primary"
-                        onClick={() => setAddingSubject(true)}
-                    >
+                    <button className="btn btn-sm btn-primary" onClick={() => setAddingSubject(true)}>
                         <Plus size={14} /> Add
                     </button>
                 </div>
@@ -237,7 +187,6 @@ export default function Settings() {
                                 layout
                                 initial={{ opacity: 0, scale: 0.8 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.8 }}
                                 style={{
                                     display: 'inline-flex', alignItems: 'center', gap: 6,
                                     padding: '6px 12px', borderRadius: 'var(--radius-full)',
@@ -252,8 +201,7 @@ export default function Settings() {
                                     style={{
                                         background: 'none', border: 'none', cursor: 'pointer',
                                         color: s.color, opacity: 0.6, padding: 0,
-                                        display: 'flex', alignItems: 'center',
-                                        marginLeft: 2,
+                                        display: 'flex', alignItems: 'center', marginLeft: 2,
                                     }}
                                 >
                                     <X size={12} />
@@ -268,73 +216,11 @@ export default function Settings() {
                 </div>
             </div>
 
-            {/* Preferences */}
-            <div className="surface-card" style={{ marginBottom: 16 }}>
-                <h3 className="text-heading-md" style={{ marginBottom: 20 }}>Preferences</h3>
-
-                {/* Grading System */}
-                <div style={{ marginBottom: 20 }}>
-                    <label className="text-label" style={{ color: 'var(--color-text-muted)', display: 'block', marginBottom: 8 }}>
-                        Grading System
-                    </label>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                        {([
-                            { value: 'cgpa' as const, label: '10-Point CGPA' },
-                            { value: 'percentage' as const, label: 'Percentage' },
-                        ]).map(opt => (
-                            <button
-                                key={opt.value}
-                                className="btn btn-sm"
-                                disabled={savingPref}
-                                onClick={() => handleGradingChange(opt.value)}
-                                style={{
-                                    background: profile?.gradingSystem === opt.value ? 'var(--color-brand)' : 'var(--color-bg-raised)',
-                                    color: profile?.gradingSystem === opt.value ? 'white' : 'var(--color-text-secondary)',
-                                    border: `1px solid ${profile?.gradingSystem === opt.value ? 'var(--color-brand)' : 'rgba(255,255,255,0.06)'}`,
-                                }}
-                            >
-                                {opt.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Streak Cutoff */}
-                <div>
-                    <label className="text-label" style={{ color: 'var(--color-text-muted)', display: 'block', marginBottom: 8 }}>
-                        Daily Streak Cutoff
-                    </label>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                        {['21:00', '22:00', '23:00', '23:59'].map(time => {
-                            const current = profile?.streakCutoffTime || '23:00'
-                            const h = parseInt(time.split(':')[0])
-                            const label = h === 0 ? '12 AM' : h > 12 ? `${h - 12} PM` : h === 12 ? '12 PM' : `${h} AM`
-                            const fullLabel = time === '23:59' ? 'Midnight' : label
-                            return (
-                                <button
-                                    key={time}
-                                    className="btn btn-sm"
-                                    disabled={savingPref}
-                                    onClick={() => handleCutoffChange(time)}
-                                    style={{
-                                        background: current === time ? 'var(--color-brand)' : 'var(--color-bg-raised)',
-                                        color: current === time ? 'white' : 'var(--color-text-secondary)',
-                                        border: `1px solid ${current === time ? 'var(--color-brand)' : 'rgba(255,255,255,0.06)'}`,
-                                    }}
-                                >
-                                    {fullLabel}
-                                </button>
-                            )
-                        })}
-                    </div>
-                </div>
-            </div>
-
             {/* Account Actions */}
             <div className="surface-card">
                 <h3 className="text-heading-md" style={{ marginBottom: 16 }}>Account</h3>
                 <div style={{ display: 'flex', gap: 12 }}>
-                    <button className="btn btn-outline" onClick={signOut}>
+                    <button className="btn btn-outline" onClick={() => setShowSignOutConfirm(true)}>
                         <LogOut size={16} /> Sign Out
                     </button>
                     <button className="btn btn-danger">
@@ -342,6 +228,174 @@ export default function Settings() {
                     </button>
                 </div>
             </div>
+
+            {/* ─── Edit Profile Modal ─── */}
+            <AnimatePresence>
+                {editing && (
+                    <motion.div
+                        className="modal-overlay"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setEditing(false)}
+                    >
+                        <motion.div
+                            className="modal-content"
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+                                <h2 className="text-heading-lg">Edit Profile</h2>
+                                <button className="btn btn-icon" onClick={() => setEditing(false)}>
+                                    <X size={18} />
+                                </button>
+                            </div>
+
+                            <div className="form-group">
+                                <label>Display Name *</label>
+                                <input
+                                    className="input"
+                                    value={formName}
+                                    onChange={e => setFormName(e.target.value)}
+                                    placeholder="Your name"
+                                />
+                            </div>
+
+                            <div className="form-group">
+                                <label>College / University</label>
+                                <input
+                                    className="input"
+                                    value={formCollege}
+                                    onChange={e => setFormCollege(e.target.value)}
+                                    placeholder="Your college"
+                                />
+                            </div>
+
+                            <div className="form-group">
+                                <label>Email</label>
+                                <input
+                                    className="input"
+                                    value={user?.email || ''}
+                                    disabled
+                                    style={{ opacity: 0.5, cursor: 'not-allowed' }}
+                                />
+                            </div>
+
+                            <div className="form-group">
+                                <label>Grading System</label>
+                                <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                                    {([
+                                        { value: 'cgpa' as const, label: '10-Point CGPA' },
+                                        { value: 'percentage' as const, label: 'Percentage' },
+                                    ]).map(opt => (
+                                        <button
+                                            key={opt.value}
+                                            type="button"
+                                            className="btn btn-sm"
+                                            onClick={() => setFormGrading(opt.value)}
+                                            style={{
+                                                flex: 1,
+                                                background: formGrading === opt.value ? 'var(--color-brand)' : 'var(--color-bg-raised)',
+                                                color: formGrading === opt.value ? 'white' : 'var(--color-text-secondary)',
+                                                border: `1px solid ${formGrading === opt.value ? 'var(--color-brand)' : 'rgba(255,255,255,0.06)'}`,
+                                            }}
+                                        >
+                                            {opt.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="form-group">
+                                <label>Daily Streak Cutoff</label>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+                                    {['21:00', '22:00', '23:00', '23:59'].map(time => {
+                                        const h = parseInt(time.split(':')[0])
+                                        const label = time === '23:59' ? 'Midnight' : h > 12 ? `${h - 12} PM` : `${h} AM`
+                                        return (
+                                            <button
+                                                key={time}
+                                                type="button"
+                                                className="btn btn-sm"
+                                                onClick={() => setFormCutoff(time)}
+                                                style={{
+                                                    background: formCutoff === time ? 'var(--color-brand)' : 'var(--color-bg-raised)',
+                                                    color: formCutoff === time ? 'white' : 'var(--color-text-secondary)',
+                                                    border: `1px solid ${formCutoff === time ? 'var(--color-brand)' : 'rgba(255,255,255,0.06)'}`,
+                                                }}
+                                            >
+                                                {label}
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
+                                <button className="btn btn-ghost" onClick={() => setEditing(false)} style={{ flex: 1 }}>
+                                    Cancel
+                                </button>
+                                <button className="btn btn-gradient" onClick={handleSaveProfile} disabled={savingProfile} style={{ flex: 1 }}>
+                                    {savingProfile ? 'Saving...' : 'Save Changes'}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* ─── Sign Out Confirmation ─── */}
+            <AnimatePresence>
+                {showSignOutConfirm && (
+                    <motion.div
+                        className="modal-overlay"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setShowSignOutConfirm(false)}
+                    >
+                        <motion.div
+                            className="modal-content"
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            onClick={e => e.stopPropagation()}
+                            style={{ maxWidth: 400, textAlign: 'center' }}
+                        >
+                            <div style={{
+                                width: 56, height: 56, borderRadius: '50%',
+                                background: 'rgba(239,68,68,0.1)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                margin: '0 auto 20px',
+                            }}>
+                                <LogOut size={24} color="#EF4444" />
+                            </div>
+                            <h2 className="text-heading-lg" style={{ marginBottom: 8 }}>Sign Out?</h2>
+                            <p className="text-body-md" style={{ color: 'var(--color-text-secondary)', marginBottom: 24 }}>
+                                Are you sure you want to sign out? Your data will be saved and available when you sign back in.
+                            </p>
+                            <div style={{ display: 'flex', gap: 12 }}>
+                                <button
+                                    className="btn btn-ghost"
+                                    onClick={() => setShowSignOutConfirm(false)}
+                                    style={{ flex: 1 }}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    className="btn btn-danger"
+                                    onClick={handleSignOut}
+                                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                                >
+                                    <LogOut size={16} /> Sign Out
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     )
 }

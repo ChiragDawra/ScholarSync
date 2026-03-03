@@ -53,6 +53,13 @@ export default function Exams() {
     const [loading, setLoading] = useState(true)
     const [showModal, setShowModal] = useState(false)
 
+    // Tick to force re-render (so completed counter updates over time)
+    const [tick, setTick] = useState(0)
+    useEffect(() => {
+        const id = setInterval(() => setTick(t => t + 1), 60_000)
+        return () => clearInterval(id)
+    }, [])
+
     // Form state
     const [formSubjectId, setFormSubjectId] = useState('')
     const [formDate, setFormDate] = useState('')
@@ -84,6 +91,12 @@ export default function Exams() {
         load()
     }, [user, subjects])
 
+    const toDate = (ts: any): Date => {
+        if (ts?.toDate) return ts.toDate()
+        if (ts?.seconds) return new Date(ts.seconds * 1000)
+        return new Date(ts)
+    }
+
     const handleAddExam = async () => {
         if (!user || !formSubjectId || !formDate) {
             toast.error('Please fill in subject and date')
@@ -102,7 +115,7 @@ export default function Exams() {
             const docRef = await addDoc(ref, examData)
             const subject = subjects.find(s => s.id === formSubjectId)
             setExams(prev => [...prev, { id: docRef.id, ...examData, subject }].sort(
-                (a, b) => a.date.toMillis() - b.date.toMillis()
+                (a, b) => toDate(a.date).getTime() - toDate(b.date).getTime()
             ))
             setShowModal(false)
             resetForm()
@@ -135,10 +148,10 @@ export default function Exams() {
 
     const { upcoming, past } = useMemo(() => {
         const now = new Date()
-        const upcoming = exams.filter(e => e.date.toDate() >= now)
-        const past = exams.filter(e => e.date.toDate() < now)
+        const upcoming = exams.filter(e => toDate(e.date) >= now)
+        const past = exams.filter(e => toDate(e.date) < now)
         return { upcoming, past }
-    }, [exams])
+    }, [exams, tick])
 
     if (loading) {
         return (
@@ -177,7 +190,7 @@ export default function Exams() {
                 <div className="surface-card" style={{ textAlign: 'center' }}>
                     <p className="text-label" style={{ color: 'var(--color-text-muted)', marginBottom: 4 }}>This Week</p>
                     <p className="text-stat-number" style={{ color: 'var(--color-warning)', fontSize: 28 }}>
-                        {upcoming.filter(e => differenceInDays(e.date.toDate(), new Date()) <= 7).length}
+                        {upcoming.filter(e => differenceInDays(toDate(e.date), new Date()) <= 7).length}
                     </p>
                 </div>
                 <div className="surface-card" style={{ textAlign: 'center' }}>
@@ -203,7 +216,7 @@ export default function Exams() {
                             <div style={{ display: 'grid', gap: 12 }}>
                                 <AnimatePresence>
                                     {upcoming.map((exam, i) => {
-                                        const examDate = exam.date.toDate()
+                                        const examDate = toDate(exam.date)
                                         const countdown = getCountdownInfo(examDate)
                                         const subjectColor = exam.subject?.color || '#64748B'
 
@@ -274,7 +287,7 @@ export default function Exams() {
                                                         {exam.subject?.name || 'Unknown'}
                                                     </span>
                                                     <span className="text-body-sm" style={{ color: 'var(--color-text-muted)' }}>
-                                                        {format(exam.date.toDate(), 'MMM d, yyyy')}
+                                                        {format(toDate(exam.date), 'MMM d, yyyy')}
                                                     </span>
                                                 </div>
                                                 <button

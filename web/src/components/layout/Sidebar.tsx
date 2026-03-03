@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/lib/AuthContext'
 import {
     LayoutDashboard, BookOpen, ClipboardList, Timer, Target,
-    BarChart3, Calculator, Sparkles, Settings, LogOut, Rocket, Flame
+    BarChart3, Calculator, Sparkles, Settings, Flame
 } from 'lucide-react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { doc, getDoc } from 'firebase/firestore'
@@ -22,7 +21,7 @@ const navItems = [
 ]
 
 export function Sidebar() {
-    const { user, profile, signOut } = useAuth()
+    const { user, profile } = useAuth()
     const location = useLocation()
     const [streak, setStreak] = useState(0)
 
@@ -84,9 +83,11 @@ export function Sidebar() {
                     <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>
                         {profile?.name || user?.displayName || 'Student'}
                     </div>
-                    <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
-                        Free Plan
-                    </div>
+                    {profile?.college && (
+                        <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
+                            {profile.college}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -155,10 +156,9 @@ export function Sidebar() {
                 })}
             </nav>
 
-            {/* Bottom Section */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 'auto', paddingTop: 16 }}>
+            {/* Bottom — Settings only */}
+            <div style={{ marginTop: 'auto', paddingTop: 16 }}>
                 <div style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', marginBottom: 8 }} />
-
                 <NavLink
                     to="/settings"
                     style={{
@@ -177,51 +177,6 @@ export function Sidebar() {
                     <Settings size={18} />
                     <span>Settings</span>
                 </NavLink>
-
-                <button
-                    onClick={signOut}
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 12,
-                        padding: '10px 16px',
-                        borderRadius: 'var(--radius-md)',
-                        border: 'none',
-                        background: 'transparent',
-                        fontSize: 14,
-                        color: 'var(--color-text-secondary)',
-                        cursor: 'pointer',
-                        height: 44,
-                        width: '100%',
-                        fontFamily: 'var(--font-sans)',
-                    }}
-                >
-                    <LogOut size={18} />
-                    <span>Sign Out</span>
-                </button>
-
-                <button
-                    className="btn-gradient"
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 8,
-                        padding: '12px 16px',
-                        borderRadius: 'var(--radius-full)',
-                        border: 'none',
-                        background: 'linear-gradient(135deg, var(--color-brand), var(--color-brand-alt))',
-                        color: 'white',
-                        fontSize: 14,
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        width: '100%',
-                        fontFamily: 'var(--font-sans)',
-                    }}
-                >
-                    <Rocket size={16} />
-                    Upgrade to Pro
-                </button>
             </div>
         </aside>
     )
