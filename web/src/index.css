@@ -98,17 +98,73 @@ body {
 /* ---- Design System Utilities ---- */
 
 /* Typography */
-.text-display { font-size: 32px; font-weight: 700; line-height: 1.2; }
-.text-heading-xl { font-size: 28px; font-weight: 700; line-height: 1.3; }
-.text-heading-lg { font-size: 22px; font-weight: 700; line-height: 1.3; }
-.text-heading-md { font-size: 18px; font-weight: 600; line-height: 1.4; }
-.text-heading-sm { font-size: 15px; font-weight: 600; line-height: 1.4; }
-.text-body-lg { font-size: 15px; font-weight: 400; line-height: 1.6; }
-.text-body-md { font-size: 14px; font-weight: 400; line-height: 1.5; }
-.text-body-sm { font-size: 13px; font-weight: 400; line-height: 1.5; }
-.text-label { font-size: 12px; font-weight: 500; line-height: 1.4; text-transform: uppercase; letter-spacing: 0.08em; }
-.text-stat-number { font-size: 36px; font-weight: 700; line-height: 1.0; }
-.text-timer { font-size: 72px; font-weight: 700; line-height: 1.0; }
+.text-display {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.text-heading-xl {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.text-heading-lg {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.text-heading-md {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.text-heading-sm {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.text-body-lg {
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.text-body-md {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.text-body-sm {
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.text-label {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.text-stat-number {
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1.0;
+}
+
+.text-timer {
+  font-size: 72px;
+  font-weight: 700;
+  line-height: 1.0;
+}
 
 /* Surface Cards */
 .surface-card {
@@ -296,6 +352,61 @@ body {
   color: var(--color-text-muted);
 }
 
+/* Date & Time Input Styling */
+input[type="date"].input,
+input[type="time"].input,
+input[type="datetime-local"].input {
+  color-scheme: dark;
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  cursor: pointer;
+}
+
+input[type="date"].input::-webkit-calendar-picker-indicator,
+input[type="time"].input::-webkit-calendar-picker-indicator,
+input[type="datetime-local"].input::-webkit-calendar-picker-indicator {
+  filter: invert(0.6) sepia(1) saturate(3) hue-rotate(200deg);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 150ms ease;
+}
+
+input[type="date"].input::-webkit-calendar-picker-indicator:hover,
+input[type="time"].input::-webkit-calendar-picker-indicator:hover,
+input[type="datetime-local"].input::-webkit-calendar-picker-indicator:hover {
+  filter: invert(0.5) sepia(1) saturate(5) hue-rotate(220deg);
+  background: rgba(91, 91, 214, 0.15);
+}
+
+input[type="date"].input::-webkit-datetime-edit-fields-wrapper,
+input[type="time"].input::-webkit-datetime-edit-fields-wrapper {
+  color: var(--color-text-primary);
+}
+
+input[type="date"].input::-webkit-datetime-edit-day-field,
+input[type="date"].input::-webkit-datetime-edit-month-field,
+input[type="date"].input::-webkit-datetime-edit-year-field,
+input[type="time"].input::-webkit-datetime-edit-hour-field,
+input[type="time"].input::-webkit-datetime-edit-minute-field,
+input[type="time"].input::-webkit-datetime-edit-ampm-field {
+  color: var(--color-text-primary);
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+input[type="date"].input::-webkit-datetime-edit-day-field:focus,
+input[type="date"].input::-webkit-datetime-edit-month-field:focus,
+input[type="date"].input::-webkit-datetime-edit-year-field:focus,
+input[type="time"].input::-webkit-datetime-edit-hour-field:focus,
+input[type="time"].input::-webkit-datetime-edit-minute-field:focus,
+input[type="time"].input::-webkit-datetime-edit-ampm-field:focus {
+  background: rgba(91, 91, 214, 0.2);
+  color: white;
+  outline: none;
+}
+
 /* Dividers */
 .divider {
   border: none;
@@ -350,6 +461,7 @@ body {
     opacity: 0;
     transform: translateY(8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -361,6 +473,7 @@ body {
     transform: scale(1);
     opacity: 1;
   }
+
   100% {
     transform: scale(1.5);
     opacity: 0;
@@ -368,9 +481,17 @@ body {
 }
 
 @keyframes bounce-in {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.2); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.2);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
 .animate-fade-in-up {
@@ -382,20 +503,37 @@ body {
 }
 
 /* React Calendar Heatmap overrides */
-.react-calendar-heatmap .color-empty { fill: var(--heatmap-empty); }
-.react-calendar-heatmap .color-scale-1 { fill: var(--heatmap-l1); }
-.react-calendar-heatmap .color-scale-2 { fill: var(--heatmap-l2); }
-.react-calendar-heatmap .color-scale-3 { fill: var(--heatmap-l3); }
-.react-calendar-heatmap .color-scale-4 { fill: var(--heatmap-l4); }
+.react-calendar-heatmap .color-empty {
+  fill: var(--heatmap-empty);
+}
+
+.react-calendar-heatmap .color-scale-1 {
+  fill: var(--heatmap-l1);
+}
+
+.react-calendar-heatmap .color-scale-2 {
+  fill: var(--heatmap-l2);
+}
+
+.react-calendar-heatmap .color-scale-3 {
+  fill: var(--heatmap-l3);
+}
+
+.react-calendar-heatmap .color-scale-4 {
+  fill: var(--heatmap-l4);
+}
+
 .react-calendar-heatmap rect {
   rx: 2;
   ry: 2;
 }
+
 .react-calendar-heatmap rect:hover {
   transform-origin: center;
   transform: scale(1.3);
   transition: transform 100ms ease;
 }
+
 .react-calendar-heatmap text {
   fill: var(--color-text-muted);
   font-size: 10px;
@@ -579,11 +717,25 @@ body {
 
 /* ---- Day 3: Celebration Animation ---- */
 @keyframes celebrate {
-  0% { transform: scale(1); }
-  25% { transform: scale(1.08) rotate(-2deg); }
-  50% { transform: scale(1.12) rotate(2deg); }
-  75% { transform: scale(1.08) rotate(-1deg); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+
+  25% {
+    transform: scale(1.08) rotate(-2deg);
+  }
+
+  50% {
+    transform: scale(1.12) rotate(2deg);
+  }
+
+  75% {
+    transform: scale(1.08) rotate(-1deg);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
 .animate-celebrate {
