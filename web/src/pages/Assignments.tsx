@@ -7,7 +7,6 @@ import { db } from '@shared/api/firebase'
 import type { Assignment, Subject } from '@shared/types'
 import toast from 'react-hot-toast'
 import { format, isToday, differenceInHours } from 'date-fns'
-import { DatePicker } from '@/components/ui/DatePicker'
 import {
     DndContext, closestCenter, DragEndEvent,
     DragStartEvent, DragOverlay, useSensor, useSensors,
@@ -445,7 +444,12 @@ export default function Assignments() {
 
                             <div className="form-group">
                                 <label>Due Date *</label>
-                                <DatePicker value={formDueDate} onChange={setFormDueDate} />
+                                <input
+                                    type="date"
+                                    className="input"
+                                    value={formDueDate}
+                                    onChange={e => setFormDueDate(e.target.value)}
+                                />
                             </div>
 
                             <div className="form-group">
