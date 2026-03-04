@@ -3,15 +3,15 @@ import { useAuth } from '@/lib/AuthContext'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
     Plus, X, Trash2, GraduationCap, BookOpen,
-    TrendingUp, Award, Target, ChevronDown, ChevronUp,
+    TrendingUp, Award, Target, ChevronDown, ChevronUp, Settings, Save,
 } from 'lucide-react'
-import { collection, addDoc, deleteDoc, updateDoc, doc, getDocs, query, orderBy } from 'firebase/firestore'
+import { collection, addDoc, deleteDoc, setDoc, updateDoc, doc, getDocs, getDoc, query, orderBy } from 'firebase/firestore'
 import { db } from '@shared/api/firebase'
 import type { Course } from '@shared/types'
 import toast from 'react-hot-toast'
 
-// Grade scale mapping (10-point CGPA)
-const GRADE_SCALE = [
+// Default 10-point CGPA scale
+const DEFAULT_GRADE_SCALE = [
     { grade: 'O', minScore: 90, points: 10 },
     { grade: 'A+', minScore: 80, points: 9 },
     { grade: 'A', minScore: 70, points: 8 },
@@ -22,12 +22,17 @@ const GRADE_SCALE = [
     { grade: 'F', minScore: 0, points: 0 },
 ]
 
-function getGradeInfo(score: number) {
-    const pct = score
-    for (const g of GRADE_SCALE) {
-        if (pct >= g.minScore) return g
+interface GradeEntry {
+    grade: string
+    minScore: number
+    points: number
+}
+
+function getGradeInfo(score: number, scale: GradeEntry[]) {
+    for (const g of scale) {
+        if (score >= g.minScore) return g
     }
-    return GRADE_SCALE[GRADE_SCALE.length - 1]
+    return scale[scale.length - 1]
 }
 
 function getDifficultyInfo(required: number) {
@@ -42,10 +47,16 @@ export default function GpaPredictor() {
     const { user, profile } = useAuth()
     const isCgpa = profile?.gradingSystem === 'cgpa' || !profile?.gradingSystem
     const [courses, setCourses] = useState<Course[]>([])
+    const [gradeScale, setGradeScale] = useState<GradeEntry[]>(DEFAULT_GRADE_SCALE)
     const [loading, setLoading] = useState(true)
     const [showModal, setShowModal] = useState(false)
     const [showGradeRef, setShowGradeRef] = useState(false)
+    const [showGradeEditor, setShowGradeEditor] = useState(false)
     const [targetGpa, setTargetGpa] = useState(8.0)
+
+    // Editable grade scale state (temporary while editing)
+    const [editScale, setEditScale] = useState<GradeEntry[]>([])
+    const [savingScale, setSavingScale] = useState(false)
 
     // Form state
     const [formSubjectId, setFormSubjectId] = useState('')
@@ -57,11 +68,21 @@ export default function GpaPredictor() {
     const [saving, setSaving] = useState(false)
 
     const subjects = profile?.subjects || []
+    const maxPoints = gradeScale.length > 0 ? Math.max(...gradeScale.map(g => g.points)) : 10
 
     useEffect(() => {
         if (!user) return
         const load = async () => {
             try {
+                // Load grade scale
+                const scaleRef = doc(db, 'users', user.uid, 'settings', 'gpaScale')
+                const scaleSnap = await getDoc(scaleRef)
+                if (scaleSnap.exists()) {
+                    const data = scaleSnap.data()
+                    if (data.scale?.length) setGradeScale(data.scale)
+                }
+
+                // Load courses
                 const ref = collection(db, 'users', user.uid, 'courses')
                 const snap = await getDocs(query(ref, orderBy('semester', 'asc')))
                 setCourses(snap.docs.map(d => ({ id: d.id, ...d.data() } as Course)))
@@ -73,6 +94,46 @@ export default function GpaPredictor() {
         }
         load()
     }, [user])
+
+    const openGradeEditor = () => {
+        setEditScale([...gradeScale])
+        setShowGradeEditor(true)
+    }
+
+    const updateEditRow = (index: number, field: keyof GradeEntry, value: string | number) => {
+        setEditScale(prev => prev.map((g, i) =>
+            i === index ? { ...g, [field]: field === 'grade' ? value : Number(value) } : g
+        ))
+    }
+
+    const addEditRow = () => {
+        setEditScale(prev => [...prev, { grade: '', minScore: 0, points: 0 }])
+    }
+
+    const removeEditRow = (index: number) => {
+        setEditScale(prev => prev.filter((_, i) => i !== index))
+    }
+
+    const saveGradeScale = async () => {
+        if (!user) return
+        // Validate
+        const hasEmpty = editScale.some(g => !g.grade.trim())
+        if (hasEmpty) { toast.error('Grade names cannot be empty'); return }
+
+        // Sort by minScore descending
+        const sorted = [...editScale].sort((a, b) => b.minScore - a.minScore)
+        setSavingScale(true)
+        try {
+            await setDoc(doc(db, 'users', user.uid, 'settings', 'gpaScale'), { scale: sorted })
+            setGradeScale(sorted)
+            setShowGradeEditor(false)
+            toast.success('Grade scale saved!')
+        } catch {
+            toast.error('Failed to save')
+        } finally {
+            setSavingScale(false)
+        }
+    }
 
     const handleAddCourse = async () => {
         if (!user || !formSubjectId || !formScore) {
@@ -126,18 +187,16 @@ export default function GpaPredictor() {
     const currentGpa = useMemo(() => {
         if (!courses.length) return 0
         if (isCgpa) {
-            let totalCredits = 0
-            let totalPoints = 0
+            let totalCredits = 0, totalPoints = 0
             courses.forEach(c => {
                 const pct = (c.currentScore / c.maxScore) * 100
-                const grade = getGradeInfo(pct)
+                const grade = getGradeInfo(pct, gradeScale)
                 totalCredits += c.creditHours
                 totalPoints += grade.points * c.creditHours
             })
             return totalCredits > 0 ? totalPoints / totalCredits : 0
         } else {
-            let totalCredits = 0
-            let totalWeighted = 0
+            let totalCredits = 0, totalWeighted = 0
             courses.forEach(c => {
                 const pct = (c.currentScore / c.maxScore) * 100
                 totalCredits += c.creditHours
@@ -145,7 +204,7 @@ export default function GpaPredictor() {
             })
             return totalCredits > 0 ? totalWeighted / totalCredits : 0
         }
-    }, [courses, isCgpa])
+    }, [courses, isCgpa, gradeScale])
 
     // Semester grouping
     const semesters = useMemo(() => {
@@ -162,28 +221,24 @@ export default function GpaPredictor() {
     const requiredScores = useMemo(() => {
         return courses.map(c => {
             const pct = (c.currentScore / c.maxScore) * 100
-            const currentGrade = getGradeInfo(pct)
+            const currentGrade = getGradeInfo(pct, gradeScale)
             let reqScore = 0
 
             if (isCgpa) {
-                // Find the minimum grade points needed to achieve target GPA
                 const totalCredits = courses.reduce((s, x) => s + x.creditHours, 0)
                 const otherPoints = courses
                     .filter(x => x.id !== c.id)
                     .reduce((s, x) => {
                         const p = (x.currentScore / x.maxScore) * 100
-                        return s + getGradeInfo(p).points * x.creditHours
+                        return s + getGradeInfo(p, gradeScale).points * x.creditHours
                     }, 0)
                 const neededPoints = targetGpa * totalCredits - otherPoints
                 const neededGradePoints = neededPoints / c.creditHours
 
-                // Find the minimum percentage for that grade
-                const targetGrade = GRADE_SCALE.find(g => g.points >= neededGradePoints)
-                if (targetGrade) {
-                    reqScore = targetGrade.minScore
-                } else {
-                    reqScore = 100 // impossible
-                }
+                // Find the minimum percentage for that grade (sorted desc by minScore)
+                const sortedScale = [...gradeScale].sort((a, b) => a.points - b.points)
+                const targetGrade = sortedScale.find(g => g.points >= neededGradePoints)
+                reqScore = targetGrade ? targetGrade.minScore : 100
             } else {
                 const totalCredits = courses.reduce((s, x) => s + x.creditHours, 0)
                 const otherWeighted = courses
@@ -206,9 +261,8 @@ export default function GpaPredictor() {
                 currentGrade: currentGrade.grade,
             }
         })
-    }, [courses, targetGpa, isCgpa, subjects])
+    }, [courses, targetGpa, isCgpa, subjects, gradeScale])
 
-    // Semester GPA calculation
     const semesterGpa = (semCourses: Course[]) => {
         if (!semCourses.length) return '—'
         if (isCgpa) {
@@ -216,7 +270,7 @@ export default function GpaPredictor() {
             semCourses.forEach(c => {
                 const pct = (c.currentScore / c.maxScore) * 100
                 tc += c.creditHours
-                tp += getGradeInfo(pct).points * c.creditHours
+                tp += getGradeInfo(pct, gradeScale).points * c.creditHours
             })
             return tc > 0 ? (tp / tc).toFixed(2) : '—'
         } else {
@@ -247,22 +301,26 @@ export default function GpaPredictor() {
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
                 <div>
-                    <h1 className="text-display" style={{ marginBottom: 4 }}>GPA Predictor 🧮</h1>
+                    <h1 className="text-display" style={{ marginBottom: 4 }}>GPA Predictor</h1>
                     <p className="text-body-lg" style={{ color: 'var(--color-text-secondary)' }}>
                         Track courses and predict what you need on finals
                     </p>
                 </div>
-                <button className="btn btn-gradient" onClick={() => setShowModal(true)}>
-                    <Plus size={18} /> Add Course
-                </button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="btn btn-outline" onClick={openGradeEditor} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Settings size={16} /> Grade Scale
+                    </button>
+                    <button className="btn btn-gradient" onClick={() => setShowModal(true)}>
+                        <Plus size={18} /> Add Course
+                    </button>
+                </div>
             </div>
 
             {/* GPA Overview Cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 28 }}>
                 <motion.div
                     className="surface-card"
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
                     style={{ textAlign: 'center', padding: '24px' }}
                 >
                     <div style={{
@@ -279,12 +337,16 @@ export default function GpaPredictor() {
                     <p className="text-heading-lg" style={{ fontSize: 32 }}>
                         {courses.length ? (isCgpa ? currentGpa.toFixed(2) : currentGpa.toFixed(1) + '%') : '—'}
                     </p>
+                    {isCgpa && courses.length > 0 && (
+                        <p className="text-body-sm" style={{ color: 'var(--color-text-muted)', marginTop: 4 }}>
+                            out of {maxPoints}
+                        </p>
+                    )}
                 </motion.div>
 
                 <motion.div
                     className="surface-card"
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
                     style={{ textAlign: 'center', padding: '24px' }}
                 >
@@ -306,8 +368,7 @@ export default function GpaPredictor() {
 
                 <motion.div
                     className="surface-card"
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
                     style={{ textAlign: 'center', padding: '24px' }}
                 >
@@ -337,13 +398,13 @@ export default function GpaPredictor() {
                         <input
                             type="range"
                             min={isCgpa ? 4 : 40}
-                            max={isCgpa ? 10 : 100}
+                            max={isCgpa ? maxPoints : 100}
                             step={isCgpa ? 0.1 : 1}
                             value={targetGpa}
                             onChange={e => setTargetGpa(parseFloat(e.target.value))}
                             style={{
                                 flex: 1, height: 6, appearance: 'none', borderRadius: 3,
-                                background: `linear-gradient(to right, #6366F1 0%, #F59E0B ${((targetGpa - (isCgpa ? 4 : 40)) / (isCgpa ? 6 : 60)) * 100}%, rgba(255,255,255,0.1) ${((targetGpa - (isCgpa ? 4 : 40)) / (isCgpa ? 6 : 60)) * 100}%)`,
+                                background: `linear-gradient(to right, #6366F1 0%, #F59E0B ${((targetGpa - (isCgpa ? 4 : 40)) / ((isCgpa ? maxPoints : 100) - (isCgpa ? 4 : 40))) * 100}%, rgba(255,255,255,0.1) ${((targetGpa - (isCgpa ? 4 : 40)) / ((isCgpa ? maxPoints : 100) - (isCgpa ? 4 : 40))) * 100}%)`,
                                 cursor: 'pointer',
                             }}
                         />
@@ -365,8 +426,7 @@ export default function GpaPredictor() {
                             <div key={r.courseId} style={{
                                 display: 'flex', alignItems: 'center', gap: 16,
                                 padding: '14px 16px', borderRadius: 'var(--radius-md)',
-                                background: 'rgba(255,255,255,0.02)',
-                                border: '1px solid rgba(255,255,255,0.04)',
+                                background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)',
                             }}>
                                 <div style={{ flex: 1 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -405,9 +465,7 @@ export default function GpaPredictor() {
                 semesters.map(([sem, semCourses]) => (
                     <div key={sem} style={{ marginBottom: 24 }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                            <h2 className="text-heading-md" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                📘 {sem}
-                            </h2>
+                            <h2 className="text-heading-md">{sem}</h2>
                             <span className="text-body-sm" style={{
                                 padding: '4px 12px', borderRadius: 'var(--radius-full)',
                                 background: 'rgba(99,102,241,0.1)', color: '#6366F1', fontWeight: 600,
@@ -418,7 +476,7 @@ export default function GpaPredictor() {
                         <div style={{ display: 'grid', gap: 8 }}>
                             {semCourses.map(course => {
                                 const pct = (course.currentScore / course.maxScore) * 100
-                                const grade = getGradeInfo(pct)
+                                const grade = getGradeInfo(pct, gradeScale)
                                 const subj = subjects.find(s => s.id === course.subjectId)
                                 const subjectColor = subj?.color || '#64748B'
 
@@ -426,8 +484,7 @@ export default function GpaPredictor() {
                                     <motion.div
                                         key={course.id}
                                         className="exam-card"
-                                        initial={{ opacity: 0, y: 8 }}
-                                        animate={{ opacity: 1, y: 0 }}
+                                        initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                                         style={{ borderLeft: `3px solid ${subjectColor}` }}
                                     >
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -459,11 +516,10 @@ export default function GpaPredictor() {
                                                             padding: '2px 10px', borderRadius: 'var(--radius-full)',
                                                             background: 'rgba(16,185,129,0.1)', color: '#10B981',
                                                         }}>
-                                                            Grade: {grade.grade} ({grade.points} pts)
+                                                            {grade.grade} ({grade.points} pts)
                                                         </span>
                                                     )}
                                                 </div>
-                                                {/* Score bar */}
                                                 <div style={{
                                                     marginTop: 8, width: '100%', maxWidth: 200, height: 4,
                                                     background: 'rgba(255,255,255,0.06)', borderRadius: 2,
@@ -508,7 +564,7 @@ export default function GpaPredictor() {
                             color: 'var(--color-text-secondary)', fontFamily: 'var(--font-sans)',
                         }}
                     >
-                        <span className="text-heading-sm">Grade Scale Reference</span>
+                        <span className="text-heading-sm">Your Grade Scale</span>
                         {showGradeRef ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                     </button>
                     <AnimatePresence>
@@ -519,15 +575,11 @@ export default function GpaPredictor() {
                                 exit={{ opacity: 0, height: 0 }}
                                 style={{ overflow: 'hidden', marginTop: 12 }}
                             >
-                                <div style={{
-                                    display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)',
-                                    gap: 8,
-                                }}>
-                                    {GRADE_SCALE.map(g => (
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                                    {gradeScale.map(g => (
                                         <div key={g.grade} style={{
                                             padding: '10px 14px', borderRadius: 'var(--radius-md)',
-                                            background: 'rgba(255,255,255,0.02)',
-                                            border: '1px solid rgba(255,255,255,0.04)',
+                                            background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)',
                                             textAlign: 'center',
                                         }}>
                                             <p className="text-heading-sm" style={{ color: '#6366F1' }}>{g.grade}</p>
@@ -548,9 +600,7 @@ export default function GpaPredictor() {
                 {showModal && (
                     <motion.div
                         className="modal-overlay"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                         onClick={() => setShowModal(false)}
                     >
                         <motion.div
@@ -585,67 +635,144 @@ export default function GpaPredictor() {
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                                 <div className="form-group">
                                     <label>Course Code</label>
-                                    <input
-                                        className="input"
-                                        value={formCode}
-                                        onChange={e => setFormCode(e.target.value)}
-                                        placeholder="e.g. CS101"
-                                    />
+                                    <input className="input" value={formCode} onChange={e => setFormCode(e.target.value)} placeholder="e.g. CS101" />
                                 </div>
                                 <div className="form-group">
                                     <label>Semester</label>
-                                    <input
-                                        className="input"
-                                        value={formSemester}
-                                        onChange={e => setFormSemester(e.target.value)}
-                                        placeholder="e.g. Sem 1"
-                                    />
+                                    <input className="input" value={formSemester} onChange={e => setFormSemester(e.target.value)} placeholder="e.g. Sem 1" />
                                 </div>
                             </div>
 
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
                                 <div className="form-group">
                                     <label>Current Score *</label>
-                                    <input
-                                        className="input"
-                                        type="number"
-                                        value={formScore}
-                                        onChange={e => setFormScore(e.target.value)}
-                                        placeholder="85"
-                                        min={0}
-                                    />
+                                    <input className="input" type="number" value={formScore} onChange={e => setFormScore(e.target.value)} placeholder="85" min={0} />
                                 </div>
                                 <div className="form-group">
                                     <label>Max Score</label>
-                                    <input
-                                        className="input"
-                                        type="number"
-                                        value={formMax}
-                                        onChange={e => setFormMax(e.target.value)}
-                                        placeholder="100"
-                                        min={1}
-                                    />
+                                    <input className="input" type="number" value={formMax} onChange={e => setFormMax(e.target.value)} placeholder="100" min={1} />
                                 </div>
                                 <div className="form-group">
                                     <label>Credits</label>
-                                    <input
-                                        className="input"
-                                        type="number"
-                                        value={formCredits}
-                                        onChange={e => setFormCredits(e.target.value)}
-                                        placeholder="3"
-                                        min={1}
-                                        max={6}
-                                    />
+                                    <input className="input" type="number" value={formCredits} onChange={e => setFormCredits(e.target.value)} placeholder="3" min={1} max={6} />
                                 </div>
                             </div>
 
                             <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
-                                <button className="btn btn-ghost" onClick={() => setShowModal(false)} style={{ flex: 1 }}>
-                                    Cancel
-                                </button>
+                                <button className="btn btn-ghost" onClick={() => setShowModal(false)} style={{ flex: 1 }}>Cancel</button>
                                 <button className="btn btn-gradient" onClick={handleAddCourse} disabled={saving} style={{ flex: 1 }}>
                                     {saving ? 'Saving...' : 'Add Course'}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Grade Scale Editor Modal */}
+            <AnimatePresence>
+                {showGradeEditor && (
+                    <motion.div
+                        className="modal-overlay"
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        onClick={() => setShowGradeEditor(false)}
+                    >
+                        <motion.div
+                            className="modal-content"
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            onClick={e => e.stopPropagation()}
+                            style={{ maxWidth: 540 }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                                <h2 className="text-heading-lg">Edit Grade Scale</h2>
+                                <button className="btn btn-icon" onClick={() => setShowGradeEditor(false)}>
+                                    <X size={18} />
+                                </button>
+                            </div>
+
+                            <p className="text-body-sm" style={{ color: 'var(--color-text-muted)', marginBottom: 16 }}>
+                                Customize the grading system to match your college. Set the grade name, minimum score (%), and grade points for each level.
+                            </p>
+
+                            {/* Header */}
+                            <div style={{
+                                display: 'grid', gridTemplateColumns: '1fr 80px 80px 40px', gap: 8,
+                                marginBottom: 8, padding: '0 4px',
+                            }}>
+                                <span className="text-label" style={{ color: 'var(--color-text-muted)', fontSize: 11 }}>GRADE</span>
+                                <span className="text-label" style={{ color: 'var(--color-text-muted)', fontSize: 11 }}>MIN %</span>
+                                <span className="text-label" style={{ color: 'var(--color-text-muted)', fontSize: 11 }}>POINTS</span>
+                                <span></span>
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 320, overflowY: 'auto' }}>
+                                {editScale.map((entry, i) => (
+                                    <div key={i} style={{
+                                        display: 'grid', gridTemplateColumns: '1fr 80px 80px 40px', gap: 8,
+                                        alignItems: 'center',
+                                    }}>
+                                        <input
+                                            className="input"
+                                            value={entry.grade}
+                                            onChange={e => updateEditRow(i, 'grade', e.target.value)}
+                                            placeholder="A+"
+                                            style={{ height: 36, fontSize: 13 }}
+                                        />
+                                        <input
+                                            className="input"
+                                            type="number"
+                                            value={entry.minScore}
+                                            onChange={e => updateEditRow(i, 'minScore', e.target.value)}
+                                            min={0} max={100}
+                                            style={{ height: 36, fontSize: 13 }}
+                                        />
+                                        <input
+                                            className="input"
+                                            type="number"
+                                            value={entry.points}
+                                            onChange={e => updateEditRow(i, 'points', e.target.value)}
+                                            min={0} max={10} step={0.5}
+                                            style={{ height: 36, fontSize: 13 }}
+                                        />
+                                        <button
+                                            onClick={() => removeEditRow(i)}
+                                            style={{
+                                                background: 'none', border: 'none', cursor: 'pointer',
+                                                color: 'var(--color-text-muted)', display: 'flex',
+                                                alignItems: 'center', justifyContent: 'center',
+                                            }}
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <button
+                                className="btn btn-ghost"
+                                onClick={addEditRow}
+                                style={{ marginTop: 8, width: '100%', justifyContent: 'center' }}
+                            >
+                                <Plus size={14} /> Add Row
+                            </button>
+
+                            <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+                                <button
+                                    className="btn btn-ghost"
+                                    onClick={() => { setEditScale([...DEFAULT_GRADE_SCALE]); }}
+                                    style={{ flex: 1 }}
+                                >
+                                    Reset to Default
+                                </button>
+                                <button
+                                    className="btn btn-gradient"
+                                    onClick={saveGradeScale}
+                                    disabled={savingScale}
+                                    style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}
+                                >
+                                    <Save size={14} /> {savingScale ? 'Saving...' : 'Save Scale'}
                                 </button>
                             </div>
                         </motion.div>

@@ -181,7 +181,7 @@ export default function Analytics() {
         <div className="animate-fade-in-up">
             {/* Header */}
             <div style={{ marginBottom: 28 }}>
-                <h1 className="text-display" style={{ marginBottom: 4 }}>Analytics Dashboard 📊</h1>
+                <h1 className="text-display" style={{ marginBottom: 4 }}>Analytics Dashboard</h1>
                 <p className="text-body-lg" style={{ color: 'var(--color-text-secondary)' }}>
                     Understand your study patterns and identify areas to improve
                 </p>

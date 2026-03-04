@@ -171,7 +171,7 @@ export default function Exams() {
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
                 <div>
-                    <h1 className="text-display" style={{ marginBottom: 4 }}>Exam Hub 📝</h1>
+                    <h1 className="text-display" style={{ marginBottom: 4 }}>Exam Hub</h1>
                     <p className="text-body-lg" style={{ color: 'var(--color-text-secondary)' }}>
                         Track upcoming exams with live countdowns
                     </p>

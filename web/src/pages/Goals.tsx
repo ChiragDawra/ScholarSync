@@ -163,7 +163,7 @@ export default function Goals() {
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
                 <div>
-                    <h1 className="text-display" style={{ marginBottom: 4 }}>Goals Board 🎯</h1>
+                    <h1 className="text-display" style={{ marginBottom: 4 }}>Goals Board</h1>
                     <p className="text-body-lg" style={{ color: 'var(--color-text-secondary)' }}>
                         Set and track your academic goals
                     </p>

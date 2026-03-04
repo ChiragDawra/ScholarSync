@@ -1,20 +1,18 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/AuthContext'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, X, Search, GripVertical, Calendar, Flag, AlertTriangle } from 'lucide-react'
+import { Plus, X, Search, GripVertical, Calendar, Flag, AlertTriangle, Pencil } from 'lucide-react'
 import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs, query, orderBy, Timestamp } from 'firebase/firestore'
 import { db } from '@shared/api/firebase'
 import type { Assignment, Subject } from '@shared/types'
 import toast from 'react-hot-toast'
 import { format, isToday, differenceInHours } from 'date-fns'
 import {
-    DndContext, closestCenter, DragEndEvent,
-    DragStartEvent, DragOverlay, useSensor, useSensors,
-    PointerSensor,
+    DndContext, DragEndEvent, DragStartEvent, DragOverlay,
+    useSensor, useSensors, PointerSensor, useDroppable, DragOverEvent,
+    pointerWithin,
 } from '@dnd-kit/core'
-import {
-    SortableContext, useSortable, verticalListSortingStrategy,
-} from '@dnd-kit/sortable'
+import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
 type ColumnId = 'todo' | 'in_progress' | 'done'
@@ -35,23 +33,51 @@ interface AssignmentWithSubject extends Assignment {
     subject?: Subject
 }
 
-function SortableCard({ assignment, subjects, onDelete }: {
-    assignment: AssignmentWithSubject, subjects: Subject[],
-    onDelete: (id: string) => void
+// Droppable column wrapper
+function DroppableColumn({ id, children }: { id: string; children: React.ReactNode }) {
+    const { setNodeRef, isOver } = useDroppable({ id })
+    return (
+        <div
+            ref={setNodeRef}
+            style={{
+                flex: 1, display: 'flex', flexDirection: 'column', gap: 10, minHeight: 120,
+                borderRadius: 'var(--radius-md)',
+                background: isOver ? 'rgba(99, 102, 241, 0.06)' : 'transparent',
+                border: isOver ? '2px dashed rgba(99, 102, 241, 0.3)' : '2px dashed transparent',
+                padding: 4,
+                transition: 'all 150ms ease',
+            }}
+        >
+            {children}
+        </div>
+    )
+}
+
+function DraggableCard({ assignment, subjects, onDelete, onEdit }: {
+    assignment: AssignmentWithSubject; subjects: Subject[];
+    onDelete: (id: string) => void; onEdit: (a: AssignmentWithSubject) => void;
 }) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
         id: assignment.id,
+        data: { status: assignment.status },
     })
 
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,
-        opacity: isDragging ? 0.4 : 1,
+        opacity: isDragging ? 0.3 : 1,
     }
 
     const subject = subjects.find(s => s.id === assignment.subjectId)
     const subjectColor = subject?.color || '#64748B'
-    const dueDate = assignment.dueDate.toDate()
+
+    const toDate = (ts: any): Date => {
+        if (ts?.toDate) return ts.toDate()
+        if (ts?.seconds) return new Date(ts.seconds * 1000)
+        return new Date(ts)
+    }
+
+    const dueDate = toDate(assignment.dueDate)
     const isDueToday = isToday(dueDate)
     const hoursUntilDue = differenceInHours(dueDate, new Date())
     const isOverdue = hoursUntilDue < 0 && assignment.status !== 'done'
@@ -67,24 +93,18 @@ function SortableCard({ assignment, subjects, onDelete }: {
                         {/* Tags row */}
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
                             <span className="subject-tag" style={{
-                                background: `${subjectColor}20`, color: subjectColor,
-                                fontSize: 11,
+                                background: `${subjectColor}20`, color: subjectColor, fontSize: 11,
                             }}>
                                 {subject?.courseCode || subject?.name || 'General'}
                             </span>
                             <span className="badge" style={{
                                 background: `${COMPLEXITY_COLORS[assignment.complexity]}15`,
-                                color: COMPLEXITY_COLORS[assignment.complexity],
-                                fontSize: 11,
+                                color: COMPLEXITY_COLORS[assignment.complexity], fontSize: 11,
                             }}>
                                 {assignment.complexity}
                             </span>
-                            {isDueToday && (
-                                <span className="badge badge-warning" style={{ fontSize: 11 }}>Due Today</span>
-                            )}
-                            {isOverdue && (
-                                <span className="badge badge-danger" style={{ fontSize: 11 }}>Overdue</span>
-                            )}
+                            {isDueToday && <span className="badge badge-warning" style={{ fontSize: 11 }}>Due Today</span>}
+                            {isOverdue && <span className="badge badge-danger" style={{ fontSize: 11 }}>Overdue</span>}
                         </div>
 
                         {/* Title */}
@@ -114,11 +134,25 @@ function SortableCard({ assignment, subjects, onDelete }: {
                                     {format(dueDate, 'MMM d')}
                                 </span>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                <Flag size={12} color={COMPLEXITY_COLORS[assignment.complexity]} />
-                                <span className="text-body-sm" style={{ color: 'var(--color-text-muted)' }}>
-                                    P{assignment.priority}
-                                </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onEdit(assignment) }}
+                                    style={{
+                                        background: 'none', border: 'none', cursor: 'pointer',
+                                        color: 'var(--color-text-muted)', padding: 2, display: 'flex',
+                                    }}
+                                >
+                                    <Pencil size={12} />
+                                </button>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onDelete(assignment.id) }}
+                                    style={{
+                                        background: 'none', border: 'none', cursor: 'pointer',
+                                        color: 'var(--color-text-muted)', padding: 2, display: 'flex',
+                                    }}
+                                >
+                                    <X size={12} />
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -135,8 +169,10 @@ export default function Assignments() {
     const [showDrawer, setShowDrawer] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
     const [activeId, setActiveId] = useState<string | null>(null)
+    const [overColumnId, setOverColumnId] = useState<string | null>(null)
 
     // Form state
+    const [editingId, setEditingId] = useState<string | null>(null)
     const [formTitle, setFormTitle] = useState('')
     const [formDescription, setFormDescription] = useState('')
     const [formSubjectId, setFormSubjectId] = useState('')
@@ -146,8 +182,9 @@ export default function Assignments() {
 
     const subjects = profile?.subjects || []
 
+    // Use PointerSensor with a distance constraint to prevent accidental drags
     const sensors = useSensors(
-        useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+        useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
     )
 
     useEffect(() => {
@@ -183,26 +220,45 @@ export default function Assignments() {
             const complexityWeight = { easy: 1, medium: 2, high: 3 }[formComplexity]
             const priority = Math.min(10, Math.round((complexityWeight * 3 + (10 / daysUntilDue) * 7)))
 
-            const data = {
-                title: formTitle,
-                description: formDescription || undefined,
-                subjectId: formSubjectId,
-                dueDate: Timestamp.fromDate(dueDate),
-                complexity: formComplexity,
-                status: 'todo' as const,
-                priority,
-                teamMode: false,
-                assignees: [],
+            if (editingId) {
+                // Update existing
+                const updateData: any = {
+                    title: formTitle,
+                    description: formDescription || '',
+                    subjectId: formSubjectId,
+                    dueDate: Timestamp.fromDate(dueDate),
+                    complexity: formComplexity,
+                    priority,
+                }
+                await updateDoc(doc(db, 'users', user.uid, 'assignments', editingId), updateData)
+                const subject = subjects.find(s => s.id === formSubjectId)
+                setAssignments(prev => prev.map(a =>
+                    a.id === editingId ? { ...a, ...updateData, subject } : a
+                ))
+                toast.success('Assignment updated!')
+            } else {
+                // Add new
+                const data = {
+                    title: formTitle,
+                    description: formDescription || undefined,
+                    subjectId: formSubjectId,
+                    dueDate: Timestamp.fromDate(dueDate),
+                    complexity: formComplexity,
+                    status: 'todo' as const,
+                    priority,
+                    teamMode: false,
+                    assignees: [],
+                }
+                const ref = collection(db, 'users', user.uid, 'assignments')
+                const docRef = await addDoc(ref, data)
+                const subject = subjects.find(s => s.id === formSubjectId)
+                setAssignments(prev => [...prev, { id: docRef.id, ...data, subject }])
+                toast.success('Assignment added!')
             }
-            const ref = collection(db, 'users', user.uid, 'assignments')
-            const docRef = await addDoc(ref, data)
-            const subject = subjects.find(s => s.id === formSubjectId)
-            setAssignments(prev => [...prev, { id: docRef.id, ...data, subject }])
             setShowDrawer(false)
             resetForm()
-            toast.success('Assignment added!')
         } catch (err) {
-            toast.error('Failed to add assignment')
+            toast.error('Failed to save assignment')
         } finally {
             setSaving(false)
         }
@@ -217,46 +273,81 @@ export default function Assignments() {
         } catch { toast.error('Failed to delete') }
     }
 
+    const handleEditAssignment = (a: AssignmentWithSubject) => {
+        setEditingId(a.id)
+        setFormTitle(a.title)
+        setFormDescription(a.description || '')
+        setFormSubjectId(a.subjectId)
+        const toDate = (ts: any): Date => {
+            if (ts?.toDate) return ts.toDate()
+            if (ts?.seconds) return new Date(ts.seconds * 1000)
+            return new Date(ts)
+        }
+        setFormDueDate(format(toDate(a.dueDate), 'yyyy-MM-dd'))
+        setFormComplexity(a.complexity)
+        setShowDrawer(true)
+    }
+
     const handleDragStart = (event: DragStartEvent) => {
         setActiveId(event.active.id as string)
     }
 
+    const handleDragOver = (event: DragOverEvent) => {
+        const { over } = event
+        if (!over) { setOverColumnId(null); return }
+        // Check if hovering over a column
+        const columnIds = COLUMNS.map(c => c.id)
+        if (columnIds.includes(over.id as ColumnId)) {
+            setOverColumnId(over.id as string)
+        } else {
+            // Hovering over a card — find its column
+            const overAssignment = assignments.find(a => a.id === over.id)
+            setOverColumnId(overAssignment?.status || null)
+        }
+    }
+
     const handleDragEnd = async (event: DragEndEvent) => {
         setActiveId(null)
+        setOverColumnId(null)
         const { active, over } = event
         if (!over || !user) return
 
         const activeAssignment = assignments.find(a => a.id === active.id)
         if (!activeAssignment) return
 
-        // Determine target column by checking which column the item is dropped over
+        // Determine target column
         let targetColumn: ColumnId | null = null
+        const columnIds = COLUMNS.map(c => c.id)
 
-        // Check if dropped over a column directly
-        if (['todo', 'in_progress', 'done'].includes(over.id as string)) {
+        if (columnIds.includes(over.id as ColumnId)) {
             targetColumn = over.id as ColumnId
         } else {
-            // Dropped over another card — find what column that card is in
             const overAssignment = assignments.find(a => a.id === over.id)
-            if (overAssignment) {
-                targetColumn = overAssignment.status
-            }
+            if (overAssignment) targetColumn = overAssignment.status
         }
 
         if (targetColumn && targetColumn !== activeAssignment.status) {
+            // Optimistically update UI
+            setAssignments(prev =>
+                prev.map(a => a.id === activeAssignment.id ? { ...a, status: targetColumn! } : a)
+            )
             try {
                 await updateDoc(doc(db, 'users', user.uid, 'assignments', activeAssignment.id), {
                     status: targetColumn,
                 })
-                setAssignments(prev =>
-                    prev.map(a => a.id === activeAssignment.id ? { ...a, status: targetColumn! } : a)
-                )
                 toast.success(`Moved to ${COLUMNS.find(c => c.id === targetColumn)?.title}`)
-            } catch { toast.error('Failed to update') }
+            } catch {
+                // Revert on failure
+                setAssignments(prev =>
+                    prev.map(a => a.id === activeAssignment.id ? { ...a, status: activeAssignment.status } : a)
+                )
+                toast.error('Failed to move')
+            }
         }
     }
 
     const resetForm = () => {
+        setEditingId(null)
         setFormTitle('')
         setFormDescription('')
         setFormSubjectId('')
@@ -271,13 +362,14 @@ export default function Assignments() {
     const getColumnItems = (status: ColumnId) =>
         filtered.filter(a => a.status === status)
 
+    const activeAssignment = assignments.find(a => a.id === activeId)
+
     if (loading) {
         return (
             <div className="animate-fade-in-up" style={{ display: 'flex', justifyContent: 'center', paddingTop: 80 }}>
                 <div style={{
                     width: 40, height: 40, borderRadius: '50%',
-                    border: '3px solid var(--color-bg-raised)',
-                    borderTopColor: 'var(--color-brand)',
+                    border: '3px solid var(--color-bg-raised)', borderTopColor: 'var(--color-brand)',
                     animation: 'spin 0.8s linear infinite',
                 }} />
             </div>
@@ -289,12 +381,12 @@ export default function Assignments() {
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
                 <div>
-                    <h1 className="text-display" style={{ marginBottom: 4 }}>Assignment Board 📋</h1>
+                    <h1 className="text-display" style={{ marginBottom: 4 }}>Assignment Board</h1>
                     <p className="text-body-lg" style={{ color: 'var(--color-text-secondary)' }}>
                         Drag cards between columns to update status
                     </p>
                 </div>
-                <button className="btn btn-gradient" onClick={() => setShowDrawer(true)}>
+                <button className="btn btn-gradient" onClick={() => { resetForm(); setShowDrawer(true) }}>
                     <Plus size={18} /> Add Assignment
                 </button>
             </div>
@@ -317,8 +409,9 @@ export default function Assignments() {
             {/* Kanban Board */}
             <DndContext
                 sensors={sensors}
-                collisionDetection={closestCenter}
+                collisionDetection={pointerWithin}
                 onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
                 onDragEnd={handleDragEnd}
             >
                 <div className="kanban-board">
@@ -331,46 +424,55 @@ export default function Assignments() {
                                         <span>{column.emoji}</span>
                                         <span className="text-heading-sm">{column.title}</span>
                                         <span className="badge" style={{
-                                            background: `${column.color}20`,
-                                            color: column.color,
+                                            background: `${column.color}20`, color: column.color,
                                         }}>
                                             {items.length}
                                         </span>
                                     </div>
                                 </div>
-                                <SortableContext
-                                    items={items.map(i => i.id)}
-                                    strategy={verticalListSortingStrategy}
-                                    id={column.id}
-                                >
-                                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10, minHeight: 100 }}>
-                                        {items.length === 0 ? (
-                                            <div style={{
-                                                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                border: '2px dashed rgba(255,255,255,0.06)', borderRadius: 'var(--radius-md)',
-                                                padding: 20, color: 'var(--color-text-muted)', fontSize: 13,
-                                            }}>
-                                                Drop here
-                                            </div>
-                                        ) : (
-                                            items.map(assignment => (
-                                                <SortableCard
-                                                    key={assignment.id}
-                                                    assignment={assignment}
-                                                    subjects={subjects}
-                                                    onDelete={handleDeleteAssignment}
-                                                />
-                                            ))
-                                        )}
-                                    </div>
-                                </SortableContext>
+                                <DroppableColumn id={column.id}>
+                                    {items.length === 0 ? (
+                                        <div style={{
+                                            flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            border: '2px dashed rgba(255,255,255,0.06)', borderRadius: 'var(--radius-md)',
+                                            padding: 20, color: 'var(--color-text-muted)', fontSize: 13,
+                                            minHeight: 100,
+                                        }}>
+                                            Drop here
+                                        </div>
+                                    ) : (
+                                        items.map(assignment => (
+                                            <DraggableCard
+                                                key={assignment.id}
+                                                assignment={assignment}
+                                                subjects={subjects}
+                                                onDelete={handleDeleteAssignment}
+                                                onEdit={handleEditAssignment}
+                                            />
+                                        ))
+                                    )}
+                                </DroppableColumn>
                             </div>
                         )
                     })}
                 </div>
+
+                {/* Drag Overlay */}
+                <DragOverlay>
+                    {activeAssignment ? (
+                        <div style={{ opacity: 0.9, transform: 'rotate(3deg)' }}>
+                            <div className="kanban-card" style={{
+                                borderLeft: `3px solid ${activeAssignment.subject?.color || '#64748B'}`,
+                                boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
+                            }}>
+                                <p className="text-heading-sm">{activeAssignment.title}</p>
+                            </div>
+                        </div>
+                    ) : null}
+                </DragOverlay>
             </DndContext>
 
-            {/* Add Assignment Drawer */}
+            {/* Add/Edit Assignment Drawer */}
             <AnimatePresence>
                 {showDrawer && (
                     <>
@@ -379,7 +481,7 @@ export default function Assignments() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            onClick={() => setShowDrawer(false)}
+                            onClick={() => { setShowDrawer(false); resetForm() }}
                         />
                         <motion.div
                             className="drawer"
@@ -389,8 +491,8 @@ export default function Assignments() {
                             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
                         >
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
-                                <h2 className="text-heading-lg">Add Assignment</h2>
-                                <button className="btn btn-icon" onClick={() => setShowDrawer(false)}>
+                                <h2 className="text-heading-lg">{editingId ? 'Edit Assignment' : 'Add Assignment'}</h2>
+                                <button className="btn btn-icon" onClick={() => { setShowDrawer(false); resetForm() }}>
                                     <X size={18} />
                                 </button>
                             </div>
@@ -478,11 +580,11 @@ export default function Assignments() {
                             </div>
 
                             <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
-                                <button className="btn btn-ghost" onClick={() => setShowDrawer(false)} style={{ flex: 1 }}>
+                                <button className="btn btn-ghost" onClick={() => { setShowDrawer(false); resetForm() }} style={{ flex: 1 }}>
                                     Cancel
                                 </button>
                                 <button className="btn btn-gradient" onClick={handleAddAssignment} disabled={saving} style={{ flex: 1 }}>
-                                    {saving ? 'Saving...' : 'Add Assignment'}
+                                    {saving ? 'Saving...' : editingId ? 'Update' : 'Add Assignment'}
                                 </button>
                             </div>
                         </motion.div>
@@ -496,7 +598,7 @@ export default function Assignments() {
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.3, type: 'spring', stiffness: 260, damping: 20 }}
-                onClick={() => setShowDrawer(true)}
+                onClick={() => { resetForm(); setShowDrawer(true) }}
             >
                 <Plus size={24} />
             </motion.button>
