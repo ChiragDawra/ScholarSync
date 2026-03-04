@@ -3,6 +3,7 @@ import { onAuthStateChanged, signInWithPopup, signOut as fbSignOut, type User as
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { auth, googleProvider, db } from '@shared/api/firebase'
 import type { User } from '@shared/types'
+import toast from 'react-hot-toast'
 
 interface AuthContextType {
     user: FirebaseUser | null
@@ -51,7 +52,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return result.user
         } catch (error: any) {
             if (error?.code === 'auth/configuration-not-found' || error?.code === 'auth/invalid-api-key') {
-                alert('Firebase not configured yet!\n\nTo enable Google Sign-In, create a Firebase project and add your credentials to web/.env.local\n\nSee the implementation plan for details.')
+                toast.error('Sign-in is not configured. Please check your Firebase setup.')
+                console.warn('Firebase auth config issue:', error.code)
             }
             throw error
         }

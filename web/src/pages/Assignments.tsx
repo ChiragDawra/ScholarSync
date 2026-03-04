@@ -7,6 +7,8 @@ import { db } from '@shared/api/firebase'
 import type { Assignment, Subject } from '@shared/types'
 import toast from 'react-hot-toast'
 import { format, isToday, differenceInHours } from 'date-fns'
+import { sanitizeString, sanitizeNumber } from '@shared/utils/sanitize'
+import { checkRateLimit } from '@shared/utils/rateLimit'
 import {
     DndContext, DragEndEvent, DragStartEvent, DragOverlay,
     useSensor, useSensors, PointerSensor, useDroppable, DragOverEvent,
@@ -213,6 +215,10 @@ export default function Assignments() {
             toast.error('Title and due date are required')
             return
         }
+        if (!checkRateLimit('addAssignment')) {
+            toast.error('Too many requests — please wait a moment')
+            return
+        }
         setSaving(true)
         try {
             const dueDate = new Date(formDueDate + 'T23:59:00')
@@ -223,9 +229,9 @@ export default function Assignments() {
             if (editingId) {
                 // Update existing
                 const updateData: any = {
-                    title: formTitle,
-                    description: formDescription || '',
-                    subjectId: formSubjectId,
+                    title: sanitizeString(formTitle, 300),
+                    description: sanitizeString(formDescription, 2000),
+                    subjectId: sanitizeString(formSubjectId, 100),
                     dueDate: Timestamp.fromDate(dueDate),
                     complexity: formComplexity,
                     priority,
@@ -239,13 +245,13 @@ export default function Assignments() {
             } else {
                 // Add new
                 const data = {
-                    title: formTitle,
-                    description: formDescription || undefined,
-                    subjectId: formSubjectId,
+                    title: sanitizeString(formTitle, 300),
+                    description: sanitizeString(formDescription, 2000) || undefined,
+                    subjectId: sanitizeString(formSubjectId, 100),
                     dueDate: Timestamp.fromDate(dueDate),
                     complexity: formComplexity,
                     status: 'todo' as const,
-                    priority,
+                    priority: sanitizeNumber(priority, 1, 10, 5),
                     teamMode: false,
                     assignees: [],
                 }

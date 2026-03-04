@@ -3,6 +3,7 @@ import { useAuth } from '@/lib/AuthContext'
 import { LogOut, Trash2, Plus, X, Check, Pencil } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
+import { sanitizeString } from '@shared/utils/sanitize'
 
 const SUBJECT_COLORS = ['#6366F1', '#A855F7', '#EC4899', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#F97316', '#14B8A6', '#8B5CF6']
 
@@ -40,8 +41,8 @@ export default function Settings() {
         setSavingProfile(true)
         try {
             await saveProfile({
-                name: formName.trim(),
-                college: formCollege.trim(),
+                name: sanitizeString(formName, 100),
+                college: sanitizeString(formCollege, 200),
                 gradingSystem: formGrading,
                 streakCutoffTime: formCutoff,
             })
@@ -55,7 +56,7 @@ export default function Settings() {
         if (!newSubject.trim()) return
         const existing = profile?.subjects || []
         const color = SUBJECT_COLORS[existing.length % SUBJECT_COLORS.length]
-        const subject = { id: Date.now().toString(), name: newSubject.trim(), color }
+        const subject = { id: Date.now().toString(), name: sanitizeString(newSubject, 100), color }
         try {
             await saveProfile({ subjects: [...existing, subject] })
             setNewSubject('')

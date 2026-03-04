@@ -9,6 +9,8 @@ import { collection, addDoc, deleteDoc, setDoc, updateDoc, doc, getDocs, getDoc,
 import { db } from '@shared/api/firebase'
 import type { Course } from '@shared/types'
 import toast from 'react-hot-toast'
+import { sanitizeString, sanitizeNumber } from '@shared/utils/sanitize'
+import { checkRateLimit } from '@shared/utils/rateLimit'
 
 // Default 10-point CGPA scale
 const DEFAULT_GRADE_SCALE = [
@@ -140,15 +142,19 @@ export default function GpaPredictor() {
             toast.error('Fill required fields')
             return
         }
+        if (!checkRateLimit('addCourse')) {
+            toast.error('Too many requests — please wait a moment')
+            return
+        }
         setSaving(true)
         try {
             const courseData = {
-                subjectId: formSubjectId,
-                courseCode: formCode.trim() || '—',
-                currentScore: parseFloat(formScore),
-                maxScore: parseFloat(formMax) || 100,
-                creditHours: parseInt(formCredits) || 3,
-                semester: formSemester.trim() || 'Sem 1',
+                subjectId: sanitizeString(formSubjectId, 100),
+                courseCode: sanitizeString(formCode, 50) || '—',
+                currentScore: sanitizeNumber(parseFloat(formScore), 0, 1000),
+                maxScore: sanitizeNumber(parseFloat(formMax) || 100, 1, 1000),
+                creditHours: sanitizeNumber(parseInt(formCredits) || 3, 1, 10),
+                semester: sanitizeString(formSemester, 50) || 'Sem 1',
             }
             const ref = collection(db, 'users', user.uid, 'courses')
             const docRef = await addDoc(ref, courseData)

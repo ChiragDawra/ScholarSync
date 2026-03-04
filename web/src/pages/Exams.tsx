@@ -9,6 +9,8 @@ import toast from 'react-hot-toast'
 import { differenceInDays, differenceInHours, format } from 'date-fns'
 import { DatePicker } from '@/components/ui/DatePicker'
 import { TimePicker } from '@/components/ui/TimePicker'
+import { sanitizeString, sanitizeNumber } from '@shared/utils/sanitize'
+import { checkRateLimit } from '@shared/utils/rateLimit'
 
 function getCountdownInfo(examDate: Date) {
     const now = new Date()
@@ -102,13 +104,17 @@ export default function Exams() {
             toast.error('Please fill in subject and date')
             return
         }
+        if (!checkRateLimit('addExam')) {
+            toast.error('Too many requests — please wait a moment')
+            return
+        }
         setSaving(true)
         try {
             const dateTime = new Date(`${formDate}T${formTime}`)
             const examData = {
-                subjectId: formSubjectId,
+                subjectId: sanitizeString(formSubjectId, 100),
                 date: Timestamp.fromDate(dateTime),
-                difficulty: formDifficulty,
+                difficulty: sanitizeNumber(formDifficulty, 1, 5, 3) as 1 | 2 | 3 | 4 | 5,
                 notificationsSent: [],
             }
             const ref = collection(db, 'users', user.uid, 'exams')
