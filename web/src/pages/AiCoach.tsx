@@ -13,6 +13,7 @@ import {
     analyzeAssignmentPriorities, generateMotivation,
     type EngineContext, type CoachResponse, type StudyBlock, type Insight,
 } from '@shared/utils/studyEngine'
+import { askClaude } from '@shared/utils/claudeChat'
 import toast from 'react-hot-toast'
 
 interface ChatMsg {
@@ -133,6 +134,8 @@ export default function AiCoach() {
         }
     }
 
+    const PRESET_KEYS = new Set(['weekly', 'focus', 'exam', 'assignments', 'motivate'])
+
     const handleSend = async (queryKey: string, displayText?: string) => {
         const userText = displayText || queryKey
         const userMsg: ChatMsg = {
@@ -145,16 +148,48 @@ export default function AiCoach() {
         setInputValue('')
         setTyping(true)
 
-        // Simulate thinking delay
-        await new Promise(r => setTimeout(r, 800 + Math.random() * 700))
+        let assistantContent = ''
+        let blocks: StudyBlock[] | undefined
+        let insights: Insight[] | undefined
 
-        const response = processQuery(queryKey)
+        if (PRESET_KEYS.has(queryKey)) {
+            // Preset prompts — use fast local engine
+            await new Promise(r => setTimeout(r, 400 + Math.random() * 400))
+            const response = processQuery(queryKey)
+            assistantContent = response.text
+            blocks = response.blocks
+            insights = response.insights
+        } else {
+            // Free text — try Claude API first
+            try {
+                const claudeReply = await askClaude({
+                    userMessage: queryKey,
+                    subjects, exams, assignments, sessions, goals, streak, userName,
+                })
+                if (claudeReply) {
+                    assistantContent = claudeReply
+                } else {
+                    // API returned empty — fall back to local engine
+                    const response = processQuery(queryKey)
+                    assistantContent = response.text
+                    blocks = response.blocks
+                    insights = response.insights
+                }
+            } catch {
+                // API failed — fall back to local engine
+                const response = processQuery(queryKey)
+                assistantContent = response.text
+                blocks = response.blocks
+                insights = response.insights
+            }
+        }
+
         const assistantMsg: ChatMsg = {
             id: `a-${Date.now()}`,
             role: 'assistant',
-            content: response.text,
-            blocks: response.blocks,
-            insights: response.insights,
+            content: assistantContent,
+            blocks,
+            insights,
             timestamp: Date.now(),
         }
 
@@ -166,7 +201,7 @@ export default function AiCoach() {
             try {
                 const ref = collection(db, 'users', user.uid, 'chat')
                 await addDoc(ref, { role: 'user', content: userText, timestamp: Timestamp.now() })
-                await addDoc(ref, { role: 'assistant', content: response.text, timestamp: Timestamp.now() })
+                await addDoc(ref, { role: 'assistant', content: assistantContent, timestamp: Timestamp.now() })
             } catch { /* silent */ }
         }
     }
