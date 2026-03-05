@@ -9,6 +9,7 @@ export interface User {
     subjects: Subject[]
     fcmTokens: string[]
     onboardingComplete: boolean
+    notificationPreferences?: NotificationPreferences
 }
 
 export interface Subject {

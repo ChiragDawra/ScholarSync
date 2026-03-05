@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useAuth } from '@/lib/AuthContext'
-import { LogOut, Trash2, Plus, X, Check, Pencil } from 'lucide-react'
+import { LogOut, Trash2, Plus, X, Check, Pencil, Download, Bell, BellOff } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { sanitizeString } from '@shared/utils/sanitize'
+import { collection, getDocs } from 'firebase/firestore'
+import { db } from '@shared/api/firebase'
 
 const SUBJECT_COLORS = ['#6366F1', '#A855F7', '#EC4899', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#F97316', '#14B8A6', '#8B5CF6']
 
@@ -25,8 +27,17 @@ export default function Settings() {
     // Sign out confirm
     const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
 
-    // Preferences saving
-    const [savingPref, setSavingPref] = useState(false)
+    // Notification prefs
+    const [notifPrefs, setNotifPrefs] = useState({
+        streakWarning: profile?.notificationPreferences?.streakWarning ?? true,
+        examAlerts: profile?.notificationPreferences?.examAlerts ?? true,
+        assignmentAlerts: profile?.notificationPreferences?.assignmentAlerts ?? true,
+        weeklySummary: profile?.notificationPreferences?.weeklySummary ?? false,
+    })
+    const [savingNotif, setSavingNotif] = useState(false)
+
+    // Data export
+    const [exporting, setExporting] = useState(false)
 
     const openEditForm = () => {
         setFormName(profile?.name || '')
@@ -76,6 +87,44 @@ export default function Settings() {
     const handleSignOut = () => {
         setShowSignOutConfirm(false)
         signOut()
+    }
+
+    const toggleNotif = async (key: keyof typeof notifPrefs) => {
+        const updated = { ...notifPrefs, [key]: !notifPrefs[key] }
+        setNotifPrefs(updated)
+        setSavingNotif(true)
+        try {
+            await saveProfile({ notificationPreferences: updated } as any)
+            toast.success('Preferences updated')
+        } catch { toast.error('Failed to save') }
+        finally { setSavingNotif(false) }
+    }
+
+    const handleExportData = async () => {
+        if (!user) return
+        setExporting(true)
+        try {
+            const collections = ['exams', 'assignments', 'sessions', 'goals', 'courses', 'streak', 'settings']
+            const exportData: Record<string, any> = { profile }
+
+            for (const col of collections) {
+                const snap = await getDocs(collection(db, 'users', user.uid, col))
+                exportData[col] = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+            }
+
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = `scholarsync-data-${new Date().toISOString().slice(0, 10)}.json`
+            a.click()
+            URL.revokeObjectURL(url)
+            toast.success('Data exported!')
+        } catch {
+            toast.error('Failed to export data')
+        } finally {
+            setExporting(false)
+        }
     }
 
     const formatCutoff = (time: string) => {
@@ -217,10 +266,63 @@ export default function Settings() {
                 </div>
             </div>
 
+            {/* Notification Preferences */}
+            <div className="surface-card" style={{ marginBottom: 16 }}>
+                <h3 className="text-heading-md" style={{ marginBottom: 16 }}>Notifications</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {([
+                        { key: 'streakWarning' as const, label: 'Streak Warning', desc: 'Remind me before my streak resets' },
+                        { key: 'examAlerts' as const, label: 'Exam Alerts', desc: 'Notifications for upcoming exams' },
+                        { key: 'assignmentAlerts' as const, label: 'Assignment Alerts', desc: 'Reminders for assignment deadlines' },
+                        { key: 'weeklySummary' as const, label: 'Weekly Summary', desc: 'Weekly progress digest' },
+                    ]).map(item => (
+                        <div key={item.key} style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            padding: '12px 16px', borderRadius: 'var(--radius-md)',
+                            background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)',
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                {notifPrefs[item.key]
+                                    ? <Bell size={16} color="#10B981" />
+                                    : <BellOff size={16} color="var(--color-text-muted)" />
+                                }
+                                <div>
+                                    <p className="text-body-md" style={{ fontWeight: 500 }}>{item.label}</p>
+                                    <p className="text-body-sm" style={{ color: 'var(--color-text-muted)', fontSize: 12 }}>{item.desc}</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => toggleNotif(item.key)}
+                                disabled={savingNotif}
+                                style={{
+                                    width: 44, height: 24, borderRadius: 12,
+                                    background: notifPrefs[item.key]
+                                        ? 'linear-gradient(135deg, #6366F1, #A855F7)'
+                                        : 'rgba(255,255,255,0.1)',
+                                    border: 'none', cursor: 'pointer', position: 'relative',
+                                    transition: 'background 200ms ease',
+                                }}
+                            >
+                                <div style={{
+                                    width: 18, height: 18, borderRadius: '50%',
+                                    background: 'white', position: 'absolute', top: 3,
+                                    left: notifPrefs[item.key] ? 23 : 3,
+                                    transition: 'left 200ms ease',
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                                }} />
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
             {/* Account Actions */}
             <div className="surface-card">
                 <h3 className="text-heading-md" style={{ marginBottom: 16 }}>Account</h3>
-                <div style={{ display: 'flex', gap: 12 }}>
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                    <button className="btn btn-outline" onClick={handleExportData} disabled={exporting}>
+                        <Download size={16} /> {exporting ? 'Exporting...' : 'Export Data'}
+                    </button>
                     <button className="btn btn-outline" onClick={() => setShowSignOutConfirm(true)}>
                         <LogOut size={16} /> Sign Out
                     </button>
