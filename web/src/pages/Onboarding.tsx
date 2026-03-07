@@ -55,7 +55,7 @@ export default function Onboarding() {
                 onboardingComplete: true,
                 fcmTokens: [],
             })
-            navigate('/')
+            navigate('/dashboard')
         } catch (err) {
             console.error('Failed to save profile:', err)
         }

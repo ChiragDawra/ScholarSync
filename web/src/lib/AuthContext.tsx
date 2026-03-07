@@ -1,5 +1,15 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
-import { onAuthStateChanged, signInWithPopup, signOut as fbSignOut, type User as FirebaseUser } from 'firebase/auth'
+import {
+    createContext, useContext, useState, useEffect,
+    useCallback, ReactNode
+} from 'react'
+import {
+    onAuthStateChanged,
+    signInWithPopup,
+    signInWithRedirect,
+    getRedirectResult,
+    signOut as fbSignOut,
+    type User as FirebaseUser
+} from 'firebase/auth'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { auth, googleProvider, db } from '@shared/api/firebase'
 import type { User } from '@shared/types'
@@ -23,19 +33,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [profile, setProfile] = useState<User | null>(null)
     const [loading, setLoading] = useState(true)
 
+    // Handle redirect result on initial load (fallback from popup-blocked scenario)
+    useEffect(() => {
+        getRedirectResult(auth)
+            .then((result) => {
+                if (result?.user) {
+                    // onAuthStateChanged will pick this up automatically
+                    console.log('Redirect sign-in successful:', result.user.displayName)
+                }
+            })
+            .catch((error) => {
+                // Only log real errors, not the "no redirect" case
+                if (error?.code !== 'auth/no-auth-event') {
+                    console.warn('Redirect result error:', error?.code)
+                }
+            })
+    }, [])
+
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
             setUser(firebaseUser)
             if (firebaseUser) {
                 try {
-                    const profileDoc = await getDoc(doc(db, 'users', firebaseUser.uid, 'profile', 'data'))
-                    if (profileDoc.exists()) {
-                        setProfile(profileDoc.data() as User)
-                    } else {
-                        setProfile(null)
-                    }
+                    const profileDoc = await getDoc(
+                        doc(db, 'users', firebaseUser.uid, 'profile', 'data')
+                    )
+                    setProfile(profileDoc.exists() ? (profileDoc.data() as User) : null)
                 } catch (err) {
-                    console.warn('Could not load profile (Firebase may not be configured):', err)
+                    console.warn('Could not load profile:', err)
                     setProfile(null)
                 }
             } else {
@@ -46,15 +71,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return () => unsubscribe()
     }, [])
 
-    const signInWithGoogle = useCallback(async () => {
+    const signInWithGoogle = useCallback(async (): Promise<FirebaseUser> => {
         try {
             const result = await signInWithPopup(auth, googleProvider)
             return result.user
         } catch (error: any) {
-            if (error?.code === 'auth/configuration-not-found' || error?.code === 'auth/invalid-api-key') {
-                toast.error('Sign-in is not configured. Please check your Firebase setup.')
-                console.warn('Firebase auth config issue:', error.code)
+            const code = error?.code as string
+
+            // Popup was blocked by the browser — fall back to redirect flow
+            if (code === 'auth/popup-blocked' || code === 'auth/popup-closed-by-user') {
+                toast('Opening Google sign-in…', { icon: '🔑' })
+                await signInWithRedirect(auth, googleProvider)
+                // Page will redirect — promise never resolves here
+                return new Promise(() => {})
             }
+
+            // Misconfiguration errors
+            if (
+                code === 'auth/configuration-not-found' ||
+                code === 'auth/invalid-api-key' ||
+                code === 'auth/api-key-not-valid.-please-pass-a-valid-api-key.'
+            ) {
+                toast.error('Firebase is not configured correctly. Check your .env.local file.')
+                console.error('Firebase config error:', code)
+                throw error
+            }
+
+            // Domain not authorized in Firebase Console
+            if (code === 'auth/unauthorized-domain') {
+                toast.error(
+                    'This domain is not authorized. Add it in Firebase Console → Authentication → Settings → Authorized domains.'
+                )
+                console.error('Unauthorized domain. Add localhost and your deploy URL to Firebase Console.')
+                throw error
+            }
+
+            // Any other error
+            console.error('Google sign-in failed:', code, error.message)
+            toast.error(`Sign-in failed: ${error.message ?? code}`)
             throw error
         }
     }, [])
@@ -68,7 +122,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!user) return
         const ref = doc(db, 'users', user.uid, 'profile', 'data')
         await setDoc(ref, { ...profileData, uid: user.uid }, { merge: true })
-        setProfile((prev) => prev ? { ...prev, ...profileData } as User : profileData as User)
+        setProfile((prev) =>
+            prev ? ({ ...prev, ...profileData } as User) : (profileData as User)
+        )
     }, [user])
 
     return (
