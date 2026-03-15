@@ -47,6 +47,16 @@ pnpm-debug.log*
 # Test coverage
 coverage/
 
+# Expo / React Native
+mobile/.expo/
+mobile/android/
+mobile/ios/
+*.jks
+*.keystore
+*.p8
+*.p12
+*.mobileprovision
+
 # Misc
 *.local
 .cache/
