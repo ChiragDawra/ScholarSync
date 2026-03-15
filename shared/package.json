@@ -1,0 +1,11 @@
+{
+  "name": "@scholarsync/shared",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.ts",
+  "types": "index.ts",
+  "peerDependencies": {
+    "firebase": ">=12.0.0",
+    "react": ">=18.0.0"
+  }
+}
