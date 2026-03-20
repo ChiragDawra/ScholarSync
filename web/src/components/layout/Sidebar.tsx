@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/AuthContext'
 import {
     LayoutDashboard, BookOpen, ClipboardList, Timer, Target,
-    BarChart3, Calculator, Sparkles, Settings, Flame
+    BarChart3, Calculator, Sparkles, Settings, Flame, Menu, X
 } from 'lucide-react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { doc, getDoc } from 'firebase/firestore'
@@ -24,6 +24,12 @@ export function Sidebar() {
     const { user, profile } = useAuth()
     const location = useLocation()
     const [streak, setStreak] = useState(0)
+    const [mobileOpen, setMobileOpen] = useState(false)
+
+    // Close sidebar on route change (mobile)
+    useEffect(() => {
+        setMobileOpen(false)
+    }, [location.pathname])
 
     useEffect(() => {
         if (!user) return
@@ -37,22 +43,17 @@ export function Sidebar() {
         loadStreak()
     }, [user])
 
-    return (
-        <aside style={{
-            width: 260,
-            minHeight: '100vh',
-            background: 'var(--color-bg-sidebar)',
-            borderRight: '1px solid rgba(255,255,255,0.06)',
-            display: 'flex',
-            flexDirection: 'column',
-            padding: '20px 12px',
-            position: 'fixed',
-            left: 0,
-            top: 0,
-            bottom: 0,
-            zIndex: 40,
-            overflowY: 'auto',
-        }}>
+    const sidebarContent = (
+        <>
+            {/* Mobile close button */}
+            <button
+                className="sidebar-close-btn"
+                onClick={() => setMobileOpen(false)}
+                aria-label="Close menu"
+            >
+                <X size={20} />
+            </button>
+
             {/* User Profile */}
             <div style={{
                 display: 'flex',
@@ -70,6 +71,7 @@ export function Sidebar() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     overflow: 'hidden',
+                    flexShrink: 0,
                 }}>
                     {user?.photoURL ? (
                         <img src={user.photoURL} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -178,6 +180,31 @@ export function Sidebar() {
                     <span>Settings</span>
                 </NavLink>
             </div>
-        </aside>
+        </>
+    )
+
+    return (
+        <>
+            {/* Mobile hamburger button */}
+            <button
+                className="mobile-menu-btn"
+                onClick={() => setMobileOpen(true)}
+                aria-label="Open menu"
+            >
+                <Menu size={22} />
+            </button>
+
+            {/* Mobile overlay backdrop */}
+            {mobileOpen && (
+                <div
+                    className="sidebar-mobile-overlay"
+                    onClick={() => setMobileOpen(false)}
+                />
+            )}
+
+            <aside className={`sidebar${mobileOpen ? ' sidebar-mobile-open' : ''}`}>
+                {sidebarContent}
+            </aside>
+        </>
     )
 }
