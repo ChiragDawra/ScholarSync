@@ -8,7 +8,7 @@ export { updateStreak, isStreakAtRisk, getDefaultStreak } from './utils/streakUt
 export {
   generateWeeklyPlan, analyzeFocusAreas, generateExamStrategy,
   analyzeAssignmentPriorities, generateMotivation,
-  type StudyBlock as EngineStudyBlock, type Insight, type CoachResponse, type EngineContext,
+  type StudyPlanBlock, type Insight, type CoachResponse, type EngineContext,
 } from './utils/studyEngine'
 export { askClaude, isClaudeAvailable } from './utils/claudeChat'
 export { auth, db, googleProvider } from './api/firebase'

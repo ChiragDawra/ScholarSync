@@ -1,9 +1,3 @@
-// Pomodoro durations in minutes
-export const POMODORO_PRESETS = {
-    short: { work: 25, break: 5 },
-    long: { work: 50, break: 10 },
-} as const
-
 // Exam urgency thresholds (in days)
 export const EXAM_URGENCY = {
     safe: 7,     // green — more than 7 days
@@ -58,16 +52,4 @@ export const DEFAULT_SUBJECT_COLORS = [
     '#F97316', // orange
     '#06B6D4', // cyan
     '#8B5CF6', // violet
-] as const
-
-// Navigation items
-export const NAV_ITEMS = [
-    { path: '/', label: 'Dashboard', icon: 'LayoutDashboard' },
-    { path: '/exams', label: 'Exams', icon: 'BookOpen' },
-    { path: '/assignments', label: 'Assignments', icon: 'ClipboardList' },
-    { path: '/pomodoro', label: 'Pomodoro', icon: 'Timer' },
-    { path: '/goals', label: 'Goals', icon: 'Target' },
-    { path: '/analytics', label: 'Analytics', icon: 'BarChart3' },
-    { path: '/gpa', label: 'GPA Predictor', icon: 'Calculator' },
-    { path: '/ai-coach', label: 'AI Coach', icon: 'Sparkles' },
 ] as const
