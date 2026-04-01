@@ -50,12 +50,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = useCallback(async (): Promise<FirebaseUser | null> => {
     try {
-      // On mobile, signInWithPopup opens a web browser for Google OAuth
-      // For production, you'd use @react-native-google-signin/google-signin
+      // NOTE: signInWithPopup is a web-only API. On actual iOS/Android devices,
+      // this will fail. For production, replace with @react-native-google-signin/google-signin.
       const result = await signInWithPopup(auth, googleProvider)
       return result.user
     } catch (error: any) {
-      console.error('Google sign-in failed:', error?.code, error?.message)
+      const code = error?.code as string
+      const message = error?.message || 'Unknown error'
+      console.error('Google sign-in failed:', code, message)
+
+      // Provide user-visible feedback via Alert
+      const { Alert } = require('react-native')
+      if (code === 'auth/operation-not-supported-in-this-environment') {
+        Alert.alert(
+          'Sign-In Not Available',
+          'Google sign-in via popup is not supported on mobile. A future update will add native Google sign-in.',
+        )
+      } else if (code === 'auth/unauthorized-domain') {
+        Alert.alert(
+          'Configuration Error',
+          'This domain is not authorized for sign-in. Please contact support.',
+        )
+      } else {
+        Alert.alert('Sign-In Failed', `Could not sign in: ${code || message}`)
+      }
       return null
     }
   }, [])
