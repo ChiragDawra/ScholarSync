@@ -112,6 +112,11 @@ export async function askClaude(opts: ClaudeChatOptions): Promise<string> {
 }
 
 export function isClaudeAvailable(): boolean {
-    // In dev, the proxy handles the key; just check we're not in a build
-    return typeof window !== 'undefined'
+    // The Vite dev proxy handles the API key — only works in dev mode.
+    // In production, /api/claude has no proxy and will 404.
+    try {
+        return typeof window !== 'undefined' && (import.meta as any)?.env?.DEV === true
+    } catch {
+        return false
+    }
 }
