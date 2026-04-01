@@ -107,6 +107,7 @@ function AppRoutes() {
       <Route path="/gpa" element={<ProtectedRoute><AppLayout><GpaPredictor /></AppLayout></ProtectedRoute>} />
       <Route path="/ai-coach" element={<ProtectedRoute><AppLayout><AiCoach /></AppLayout></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><AppLayout><Settings /></AppLayout></ProtectedRoute>} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
 }

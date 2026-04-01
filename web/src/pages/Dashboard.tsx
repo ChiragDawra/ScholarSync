@@ -80,38 +80,12 @@ export default function Dashboard() {
         return data
     }, [streak.heatmap])
 
-    const scheduleItems = [
-        {
-            time: '10:00 - 11:30 AM',
-            title: 'Physics: Mechanics Review',
-            subtitle: 'Chapter 4 — Forces & Motion',
-            tags: [
-                { label: 'Pomodoro', color: '#6366F1' },
-                { label: 'Chapter 4', color: '#A855F7' },
-            ],
-            isCurrent: true,
-        },
-        {
-            time: '12:30 - 01:30 PM',
-            title: 'Lunch Break',
-            subtitle: 'Cafeteria',
-            tags: [],
-            isCurrent: false,
-        },
-        {
-            time: '02:00 - 04:00 PM',
-            title: 'Calculus II Assignment',
-            tags: [{ label: 'Due Today', color: '#F59E0B' }],
-            isCurrent: false,
-        },
-        {
-            time: '05:00 - 06:00 PM',
-            title: 'Group Study: Chemistry',
-            subtitle: 'Organic Reactions',
-            tags: [{ label: 'Group', color: '#10B981' }],
-            isCurrent: false,
-        },
-    ]
+    // Schedule items — populated from real study blocks when available.
+    // For now, show empty state rather than misleading demo data.
+    const scheduleItems: Array<{
+        time: string; title: string; subtitle?: string;
+        tags: Array<{ label: string; color: string }>; isCurrent: boolean;
+    }> = []
 
     const greeting = useMemo(() => {
         const hour = today.getHours()
