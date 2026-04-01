@@ -10,7 +10,7 @@ import type { Exam, Assignment, Session, Goal, Streak, Subject } from '@shared/t
 
 // ── Output types ──
 
-export interface StudyBlock {
+export interface StudyPlanBlock {
     subject: string
     subjectColor: string
     date: string          // YYYY-MM-DD
@@ -29,16 +29,18 @@ export interface Insight {
 
 export interface CoachResponse {
     text: string
-    blocks?: StudyBlock[]
+    blocks?: StudyPlanBlock[]
     insights?: Insight[]
 }
 
 // ── Helpers ──
 
 function toDate(ts: any): Date {
+    if (ts == null) return new Date(0)
     if (ts?.toDate) return ts.toDate()
     if (ts?.seconds) return new Date(ts.seconds * 1000)
-    return new Date(ts)
+    const d = new Date(ts)
+    return isNaN(d.getTime()) ? new Date(0) : d
 }
 
 function daysUntil(date: Date): number {
@@ -80,7 +82,7 @@ export interface EngineContext {
 export function generateWeeklyPlan(ctx: EngineContext): CoachResponse {
     const { exams, assignments, subjects, sessions, userName } = ctx
     const today = new Date()
-    const blocks: StudyBlock[] = []
+    const blocks: StudyPlanBlock[] = []
 
     // Score each subject by urgency
     const subjectScores: Record<string, { score: number; reason: string; name: string; color: string }> = {}
@@ -112,7 +114,7 @@ export function generateWeeklyPlan(ctx: EngineContext): CoachResponse {
             const subj = subjects.find(s => s.id === a.subjectId)
             const name = subj?.name || 'General'
             const color = subj?.color || '#64748B'
-            const diffNum = { easy: 1, medium: 3, high: 5 }[a.complexity]
+            const diffNum = ({ easy: 1, medium: 3, high: 5 } as const)[a.complexity as 'easy' | 'medium' | 'high'] ?? 3
             const score = urgencyScore(left, diffNum)
             const id = subj?.id || 'general'
             const existing = subjectScores[id]?.score || 0
@@ -295,7 +297,7 @@ export function analyzeFocusAreas(ctx: EngineContext): CoachResponse {
 export function generateExamStrategy(ctx: EngineContext): CoachResponse {
     const { exams, subjects, sessions, userName } = ctx
     const insights: Insight[] = []
-    const blocks: StudyBlock[] = []
+    const blocks: StudyPlanBlock[] = []
 
     const upcoming = exams
         .filter(e => daysUntil(toDate(e.date)) > 0 && daysUntil(toDate(e.date)) <= 14)
@@ -376,7 +378,7 @@ export function analyzeAssignmentPriorities(ctx: EngineContext): CoachResponse {
         .map(a => {
             const subj = subjects.find(s => s.id === a.subjectId)
             const dLeft = daysUntil(toDate(a.dueDate))
-            const diffNum = { easy: 1, medium: 2, high: 3 }[a.complexity]
+            const diffNum = ({ easy: 1, medium: 2, high: 3 } as const)[a.complexity as 'easy' | 'medium' | 'high'] ?? 2
             return { ...a, subjectName: subj?.name || 'General', daysLeft: dLeft, diffNum }
         })
         .filter(a => a.daysLeft > 0)
